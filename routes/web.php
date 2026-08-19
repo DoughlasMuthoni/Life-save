@@ -14,4 +14,13 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::livewire('/dashboard', 'dashboard')->name('dashboard');
     Route::post('/logout', LogoutController::class)->name('logout');
+
+    Route::prefix('finance')->name('finance.')->group(function () {
+        Route::livewire('/accounts', 'finance.accounts')->name('accounts');
+        Route::livewire('/categories', 'finance.categories')->name('categories');
+        Route::livewire('/transactions', 'finance.transactions')->name('transactions');
+        Route::livewire('/income/new', 'finance.record-income')->name('income.create');
+        Route::livewire('/expenses/new', 'finance.record-expense')->name('expenses.create');
+        Route::livewire('/transfers/new', 'finance.record-transfer')->name('transfers.create');
+    });
 });
