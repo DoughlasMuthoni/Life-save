@@ -3,8 +3,10 @@
 namespace App\Domain\AI\Providers;
 
 use Anthropic\Client;
+use Anthropic\Lib\Tools\BetaRunnableTool;
 use App\Domain\AI\Contracts\AIProviderInterface;
 use App\Domain\AI\DataTransferObjects\AiExtractedTransaction;
+use App\Domain\AI\DataTransferObjects\AiTool;
 use App\Domain\Finance\Support\Money;
 use App\Domain\Ingestion\Enums\ExtractedTransactionType;
 use Carbon\CarbonImmutable;
@@ -79,7 +81,68 @@ class ClaudeProvider implements AIProviderInterface
         - confidence is your own overall confidence in this extraction, 0.0 to 1.0.
         PROMPT;
 
+    private const ASSISTANT_SYSTEM_PROMPT = <<<'PROMPT'
+        You are a read-only personal finance assistant. You have no access to
+        the user's financial data except through the tools provided to you —
+        you cannot see, guess, or invent financial figures.
+
+        Rules:
+        - Always call a tool to get real data before answering any question
+          that involves a financial figure. Never compute a sum, average, or
+          percentage yourself — always use the number a tool already
+          calculated for you.
+        - If no available tool can answer the question, say so plainly
+          rather than guessing or approximating.
+        - Keep answers concise and concrete, using the actual figures the
+          tools returned. State amounts clearly (they are in Kenyan
+          Shillings unless the tool result says otherwise).
+        - You cannot change the user's data in any way. If asked to record,
+          edit, or delete anything, explain that you can only view and
+          explain data, and suggest which screen in the app to use instead.
+        PROMPT;
+
     public function __construct(private readonly Client $client, private readonly string $model) {}
+
+    public function answerQuestion(string $question, array $tools): string
+    {
+        $runnableTools = array_map(
+            fn (AiTool $tool) => new BetaRunnableTool(
+                definition: [
+                    'name' => $tool->name,
+                    'description' => $tool->description,
+                    'inputSchema' => $tool->parameters,
+                ],
+                run: fn (array $input) => json_encode(($tool->handler)($input)),
+            ),
+            $tools,
+        );
+
+        try {
+            $runner = $this->client->beta->messages->toolRunner(
+                model: $this->model,
+                maxTokens: 2048,
+                messages: [['role' => 'user', 'content' => $question]],
+                tools: $runnableTools,
+                extraParams: ['system' => self::ASSISTANT_SYSTEM_PROMPT],
+            );
+
+            $finalText = '';
+
+            foreach ($runner as $message) {
+                foreach ($message->content as $block) {
+                    if ($block->type === 'text') {
+                        $finalText = $block->text;
+                    }
+                }
+            }
+
+            return $finalText !== '' ? $finalText : "I wasn't able to come up with an answer to that.";
+        } catch (Throwable $e) {
+            Log::warning('ClaudeProvider: answerQuestion request failed', ['error' => $e->getMessage()]);
+
+            return 'Something went wrong answering that question. Please try again in a moment.';
+        }
+    }
 
     public function parseFinancialMessage(string $normalizedText): ?AiExtractedTransaction
     {

@@ -29,6 +29,8 @@
                         <a href="{{ route('finance.messages') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.messages') ? 'text-slate-900' : '' }}">Messages</a>
                         <a href="{{ route('savings-goals') }}" class="hover:text-slate-900 {{ request()->routeIs('savings-goals') ? 'text-slate-900' : '' }}">Savings Goals</a>
                         <a href="{{ route('wishlist') }}" class="hover:text-slate-900 {{ request()->routeIs('wishlist') ? 'text-slate-900' : '' }}">Wishlist</a>
+                        <a href="{{ route('reports.monthly') }}" class="hover:text-slate-900 {{ request()->routeIs('reports.*') ? 'text-slate-900' : '' }}">Reports</a>
+                        <a href="{{ route('ai-assistant') }}" class="hover:text-slate-900 {{ request()->routeIs('ai-assistant') ? 'text-slate-900' : '' }}">AI Assistant</a>
                         <a href="{{ route('finance.accounts') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.accounts') ? 'text-slate-900' : '' }}">Accounts</a>
                         <a href="{{ route('finance.categories') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.categories') ? 'text-slate-900' : '' }}">Categories</a>
                         <a href="{{ route('finance.transactions') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.transactions') ? 'text-slate-900' : '' }}">Transactions</a>

@@ -15,7 +15,12 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/dashboard', 'dashboard')->name('dashboard');
     Route::livewire('/savings-goals', 'savings-goals')->name('savings-goals');
     Route::livewire('/wishlist', 'wishlist')->name('wishlist');
+    Route::livewire('/ai-assistant', 'ai-assistant')->name('ai-assistant');
     Route::post('/logout', LogoutController::class)->name('logout');
+
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::livewire('/monthly', 'reports.monthly')->name('monthly');
+    });
 
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::livewire('/messages', 'finance.messages.paste')->name('messages');
