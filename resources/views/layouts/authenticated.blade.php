@@ -26,6 +26,7 @@
                     </a>
                     <div class="hidden items-center gap-4 text-sm font-medium text-slate-600 sm:flex">
                         <a href="{{ route('dashboard') }}" class="hover:text-slate-900 {{ request()->routeIs('dashboard') ? 'text-slate-900' : '' }}">Dashboard</a>
+                        <a href="{{ route('finance.messages') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.messages') ? 'text-slate-900' : '' }}">Messages</a>
                         <a href="{{ route('finance.accounts') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.accounts') ? 'text-slate-900' : '' }}">Accounts</a>
                         <a href="{{ route('finance.categories') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.categories') ? 'text-slate-900' : '' }}">Categories</a>
                         <a href="{{ route('finance.transactions') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.transactions') ? 'text-slate-900' : '' }}">Transactions</a>

@@ -37,6 +37,8 @@ class TransferService
         int $feeMinor = 0,
         ?CarbonInterface $occurredAt = null,
         ?string $description = null,
+        string $sourceType = 'manual',
+        ?int $sourceId = null,
     ): Journal {
         $this->assertValidTransfer($user, $from, $to, $amountMinor, $feeCategory, $feeMinor);
 
@@ -71,7 +73,8 @@ class TransferService
             entries: $entries,
             occurredAt: $occurredAt,
             description: $description,
-            sourceType: 'manual',
+            sourceType: $sourceType,
+            sourceId: $sourceId,
         );
 
         $this->auditLogger->record(AuditAction::TRANSACTION_POSTED, $journal, [

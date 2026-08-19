@@ -15,11 +15,12 @@ use Carbon\CarbonInterface;
 use InvalidArgumentException;
 
 /**
- * Simple two-leg income/expense postings: one leg against a real financial
- * account, one leg against an income/expense category. Transfers between
- * the user's own accounts are deliberately NOT handled here — see
- * TransferService, which guarantees they can never be miscounted as income
- * or expense (CLAUDE.md §6).
+ * Simple income/expense postings: one leg against a real financial
+ * account, one leg against an income/expense category, and — for expenses
+ * only — an optional third leg for a transaction fee (e.g. a paybill's
+ * "Transaction cost"). Transfers between the user's own accounts are
+ * deliberately NOT handled here — see TransferService, which guarantees
+ * they can never be miscounted as income or expense (CLAUDE.md §6).
  */
 class TransactionService
 {
@@ -35,17 +36,44 @@ class TransactionService
         int $amountMinor,
         ?CarbonInterface $occurredAt = null,
         ?string $description = null,
+        string $sourceType = 'manual',
+        ?int $sourceId = null,
     ): Journal {
-        return $this->recordSimpleTransaction(
-            JournalType::INCOME,
-            TransactionCategoryType::INCOME,
-            $user,
-            $account,
-            $category,
-            $amountMinor,
-            $occurredAt,
-            $description,
+        $this->assertOwnedBy($user, $account, $category);
+        $this->assertCategoryType($category, TransactionCategoryType::INCOME, JournalType::INCOME);
+
+        $journal = $this->ledger->postJournal(
+            user: $user,
+            journalType: JournalType::INCOME,
+            entries: [
+                [
+                    'ledger_account_id' => $account->ledger_account_id,
+                    'side' => LedgerEntrySide::DEBIT,
+                    'amount_minor' => $amountMinor,
+                    'currency' => $account->currency,
+                ],
+                [
+                    'ledger_account_id' => $category->ledger_account_id,
+                    'side' => LedgerEntrySide::CREDIT,
+                    'amount_minor' => $amountMinor,
+                    'currency' => $account->currency,
+                    'transaction_category_id' => $category->id,
+                ],
+            ],
+            occurredAt: $occurredAt,
+            description: $description,
+            sourceType: $sourceType,
+            sourceId: $sourceId,
         );
+
+        $this->auditLogger->record(AuditAction::TRANSACTION_POSTED, $journal, [
+            'journal_type' => JournalType::INCOME->value,
+            'amount_minor' => $amountMinor,
+            'financial_account_id' => $account->id,
+            'transaction_category_id' => $category->id,
+        ]);
+
+        return $journal;
     }
 
     public function recordExpense(
@@ -55,76 +83,87 @@ class TransactionService
         int $amountMinor,
         ?CarbonInterface $occurredAt = null,
         ?string $description = null,
-    ): Journal {
-        return $this->recordSimpleTransaction(
-            JournalType::EXPENSE,
-            TransactionCategoryType::EXPENSE,
-            $user,
-            $account,
-            $category,
-            $amountMinor,
-            $occurredAt,
-            $description,
-        );
-    }
-
-    private function recordSimpleTransaction(
-        JournalType $journalType,
-        TransactionCategoryType $expectedCategoryType,
-        User $user,
-        FinancialAccount $account,
-        TransactionCategory $category,
-        int $amountMinor,
-        ?CarbonInterface $occurredAt,
-        ?string $description,
+        ?TransactionCategory $feeCategory = null,
+        int $feeMinor = 0,
+        string $sourceType = 'manual',
+        ?int $sourceId = null,
     ): Journal {
         $this->assertOwnedBy($user, $account, $category);
+        $this->assertCategoryType($category, TransactionCategoryType::EXPENSE, JournalType::EXPENSE);
 
-        if ($category->type !== $expectedCategoryType) {
-            throw new InvalidArgumentException(
-                "Category [{$category->name}] is a {$category->type->value} category and cannot be used for a {$journalType->value} transaction."
-            );
+        if ($feeMinor < 0) {
+            throw new InvalidArgumentException('Fee amount cannot be negative.');
         }
 
-        $assetAccountId = $account->ledger_account_id;
-        $categoryAccountId = $category->ledger_account_id;
+        if ($feeMinor > 0 && $feeCategory === null) {
+            throw new InvalidArgumentException('A fee category is required when a fee is charged.');
+        }
 
-        // Income: debit the asset account (money in), credit the income account.
-        // Expense: debit the expense account, credit the asset account (money out).
-        $assetSide = $journalType === JournalType::INCOME ? LedgerEntrySide::DEBIT : LedgerEntrySide::CREDIT;
-        $categorySide = $assetSide->opposite();
+        if ($feeCategory !== null) {
+            $this->assertCategoryType($feeCategory, TransactionCategoryType::EXPENSE, JournalType::EXPENSE, 'Fee category');
+            if ($feeCategory->user_id !== null && $feeCategory->user_id !== $user->id) {
+                throw new InvalidArgumentException('That fee category does not belong to this user.');
+            }
+        }
+
+        $entries = [
+            [
+                'ledger_account_id' => $category->ledger_account_id,
+                'side' => LedgerEntrySide::DEBIT,
+                'amount_minor' => $amountMinor,
+                'currency' => $account->currency,
+                'transaction_category_id' => $category->id,
+            ],
+            [
+                'ledger_account_id' => $account->ledger_account_id,
+                'side' => LedgerEntrySide::CREDIT,
+                'amount_minor' => $amountMinor + $feeMinor,
+                'currency' => $account->currency,
+            ],
+        ];
+
+        if ($feeMinor > 0) {
+            $entries[] = [
+                'ledger_account_id' => $feeCategory->ledger_account_id,
+                'side' => LedgerEntrySide::DEBIT,
+                'amount_minor' => $feeMinor,
+                'currency' => $account->currency,
+                'transaction_category_id' => $feeCategory->id,
+            ];
+        }
 
         $journal = $this->ledger->postJournal(
             user: $user,
-            journalType: $journalType,
-            entries: [
-                [
-                    'ledger_account_id' => $assetAccountId,
-                    'side' => $assetSide,
-                    'amount_minor' => $amountMinor,
-                    'currency' => $account->currency,
-                ],
-                [
-                    'ledger_account_id' => $categoryAccountId,
-                    'side' => $categorySide,
-                    'amount_minor' => $amountMinor,
-                    'currency' => $account->currency,
-                    'transaction_category_id' => $category->id,
-                ],
-            ],
+            journalType: JournalType::EXPENSE,
+            entries: $entries,
             occurredAt: $occurredAt,
             description: $description,
-            sourceType: 'manual',
+            sourceType: $sourceType,
+            sourceId: $sourceId,
         );
 
         $this->auditLogger->record(AuditAction::TRANSACTION_POSTED, $journal, [
-            'journal_type' => $journalType->value,
+            'journal_type' => JournalType::EXPENSE->value,
             'amount_minor' => $amountMinor,
+            'fee_minor' => $feeMinor,
             'financial_account_id' => $account->id,
             'transaction_category_id' => $category->id,
         ]);
 
         return $journal;
+    }
+
+    private function assertCategoryType(
+        TransactionCategory $category,
+        TransactionCategoryType $expected,
+        JournalType $journalType,
+        string $label = 'Category',
+    ): void {
+        if ($category->type !== $expected) {
+            throw new InvalidArgumentException(
+                "{$label} [{$category->name}] is a {$category->type->value} category and cannot be used for a {$journalType->value} transaction."
+            );
+        }
     }
 
     private function assertOwnedBy(User $user, FinancialAccount $account, TransactionCategory $category): void

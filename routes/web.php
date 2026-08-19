@@ -16,6 +16,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', LogoutController::class)->name('logout');
 
     Route::prefix('finance')->name('finance.')->group(function () {
+        Route::livewire('/messages', 'finance.messages.paste')->name('messages');
         Route::livewire('/accounts', 'finance.accounts')->name('accounts');
         Route::livewire('/categories', 'finance.categories')->name('categories');
         Route::livewire('/transactions', 'finance.transactions')->name('transactions');

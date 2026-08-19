@@ -13,4 +13,7 @@ enum AuditAction: string
     case FINANCIAL_ACCOUNT_CREATED = 'financial_account.created';
     case TRANSACTION_POSTED = 'transaction.posted';
     case TRANSACTION_REVERSED = 'transaction.reversed';
+    case SMS_PARSED = 'sms.parsed';
+    case SMS_DUPLICATE_DETECTED = 'sms.duplicate_detected';
+    case PROPOSED_TRANSACTION_REJECTED = 'proposed_transaction.rejected';
 }
