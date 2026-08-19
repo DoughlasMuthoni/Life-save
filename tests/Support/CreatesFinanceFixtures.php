@@ -8,6 +8,9 @@ use App\Domain\Finance\Enums\TransactionCategoryType;
 use App\Domain\Finance\Models\FinancialAccount;
 use App\Domain\Finance\Models\LedgerAccount;
 use App\Domain\Finance\Models\TransactionCategory;
+use App\Domain\Goals\Models\Goal;
+use App\Domain\Goals\Services\GoalService;
+use App\Domain\Support\Enums\Priority;
 use App\Models\User;
 
 /**
@@ -68,5 +71,20 @@ trait CreatesFinanceFixtures
     protected function createExpenseCategory(User $user, string $name = 'Groceries'): TransactionCategory
     {
         return $this->createCategory($user, $name, TransactionCategoryType::EXPENSE);
+    }
+
+    protected function createSavingsGoal(
+        User $user,
+        string $title = 'Emergency Fund',
+        int $targetValueMinor = 10000000,
+        ?int $monthlyContributionMinor = null,
+    ): Goal {
+        return app(GoalService::class)->createSavingsGoal(
+            user: $user,
+            title: $title,
+            targetValueMinor: $targetValueMinor,
+            priority: Priority::MEDIUM,
+            monthlyContributionMinor: $monthlyContributionMinor,
+        );
     }
 }

@@ -13,6 +13,8 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::livewire('/dashboard', 'dashboard')->name('dashboard');
+    Route::livewire('/savings-goals', 'savings-goals')->name('savings-goals');
+    Route::livewire('/wishlist', 'wishlist')->name('wishlist');
     Route::post('/logout', LogoutController::class)->name('logout');
 
     Route::prefix('finance')->name('finance.')->group(function () {
