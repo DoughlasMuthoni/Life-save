@@ -23,5 +23,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(TransactionCategorySeeder::class);
+        $this->call(FinancialAccountSeeder::class);
     }
 }
