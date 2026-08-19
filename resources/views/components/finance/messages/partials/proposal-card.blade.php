@@ -23,13 +23,13 @@
         </div>
     @endif
 
-    <div class="flex items-start justify-between gap-4">
-        <div class="flex items-start gap-3">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="flex min-w-0 items-start gap-3">
             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full {{ $iconBg }}">
                 <x-icon :name="$shapeMeta['icon']" class="h-4.5 w-4.5" />
             </span>
-            <div>
-                <div class="flex items-center gap-2">
+            <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
                     <span class="text-sm font-medium text-slate-900">{{ ucwords(str_replace('_', ' ', $proposal->transaction_type->value)) }}</span>
                     <x-ui.badge :color="$shapeMeta['color']">{{ ucfirst($shape->value) }}</x-ui.badge>
                 </div>
@@ -38,14 +38,14 @@
                     <p class="text-xs text-slate-500">+ {{ \App\Domain\Finance\Support\Money::formatMinor($proposal->fee_minor, $proposal->currency) }} fee</p>
                 @endif
                 @if ($proposal->counterparty)
-                    <p class="mt-1 text-sm text-slate-600">{{ $proposal->counterparty }}</p>
+                    <p class="mt-1 break-words text-sm text-slate-600">{{ $proposal->counterparty }}</p>
                 @endif
                 <p class="text-xs text-slate-400">{{ $proposal->transaction_time->format('M j, Y \a\t g:i A') }}</p>
             </div>
         </div>
-        <details class="shrink-0 text-xs text-slate-400">
+        <details class="w-full shrink-0 text-xs text-slate-400 sm:w-auto">
             <summary class="cursor-pointer select-none">Raw SMS</summary>
-            <p class="mt-1 max-w-xs font-mono">{{ $proposal->financialMessage->raw_text }}</p>
+            <p class="mt-1 max-w-full break-words font-mono sm:max-w-xs">{{ $proposal->financialMessage->raw_text }}</p>
         </details>
     </div>
 

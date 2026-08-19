@@ -15,7 +15,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="h-full font-sans antialiased text-slate-900">
+<body class="h-full overflow-x-hidden font-sans antialiased text-slate-900">
     @php
         $navGroups = [
             null => [

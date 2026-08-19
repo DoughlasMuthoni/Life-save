@@ -193,13 +193,13 @@ new #[Layout('layouts.authenticated')] class extends Component
     <div class="mt-6 space-y-4">
         @forelse ($this->purchases as $purchase)
             <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                <div class="flex items-start justify-between gap-4">
-                    <div class="flex items-start gap-3">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div class="flex min-w-0 items-start gap-3">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-500">
                             <x-icon name="bag" class="h-5 w-5" />
                         </span>
-                        <div>
-                            <p class="font-medium text-slate-900">{{ $purchase->merchant->name ?? 'Unspecified merchant' }}</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="break-words font-medium text-slate-900">{{ $purchase->merchant->name ?? 'Unspecified merchant' }}</p>
                             <p class="text-xs text-slate-400">
                                 {{ $purchase->purchased_at->format('M j, Y') }}
                                 @if ($purchase->journal)
@@ -209,7 +209,7 @@ new #[Layout('layouts.authenticated')] class extends Component
                                 @endif
                             </p>
                             @if ($purchase->notes)
-                                <p class="mt-1 text-sm text-slate-500">{{ $purchase->notes }}</p>
+                                <p class="mt-1 break-words text-sm text-slate-500">{{ $purchase->notes }}</p>
                             @endif
                         </div>
                     </div>

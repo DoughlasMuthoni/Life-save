@@ -171,12 +171,12 @@ new #[Layout('layouts.authenticated')] class extends Component
             @php $scenarios = $this->affordability($item, app(WishlistAffordabilityService::class)); @endphp
             <div class="rounded-2xl border border-slate-200 bg-white p-4">
                 <div class="flex items-start justify-between gap-3">
-                    <div class="flex items-start gap-3">
+                    <div class="flex min-w-0 items-start gap-3">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-pink-50 text-pink-500">
                             <x-icon name="heart" class="h-5 w-5" />
                         </span>
-                        <div>
-                            <p class="font-medium text-slate-900">{{ $item->name }}</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="break-words font-medium text-slate-900">{{ $item->name }}</p>
                             <div class="mt-1 flex flex-wrap items-center gap-1.5">
                                 <x-ui.badge :color="['low' => 'slate', 'medium' => 'amber', 'high' => 'red'][$item->priority->value]">{{ ucfirst($item->priority->value) }}</x-ui.badge>
                                 @if ($item->category)
@@ -185,7 +185,7 @@ new #[Layout('layouts.authenticated')] class extends Component
                             </div>
                             <p class="mt-1.5 text-lg font-semibold text-slate-900">{{ Money::formatMinor($item->estimated_price_minor) }}</p>
                             @if ($item->linkedGoal)
-                                <p class="text-xs text-slate-400">
+                                <p class="break-words text-xs text-slate-400">
                                     {{ Money::formatMinor($item->amountAllocatedMinor()) }} set aside via &ldquo;{{ $item->linkedGoal->title }}&rdquo;
                                     &middot; {{ Money::formatMinor($item->remainingAmountMinor()) }} remaining
                                 </p>

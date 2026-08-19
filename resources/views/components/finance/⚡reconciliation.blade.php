@@ -78,9 +78,9 @@ new #[Layout('layouts.authenticated')] class extends Component
         <div class="mt-3 space-y-4">
             @forelse ($this->mismatched as $observation)
                 <div class="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-sm font-medium text-slate-900">{{ $observation->financialAccount->name }}</p>
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                            <p class="break-words text-sm font-medium text-slate-900">{{ $observation->financialAccount->name }}</p>
                             <p class="text-xs text-slate-500">{{ $observation->observed_at->format('M j, Y \a\t g:i A') }}</p>
                             <div class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
                                 <span class="text-slate-500">SMS said</span>
@@ -120,9 +120,9 @@ new #[Layout('layouts.authenticated')] class extends Component
                 @foreach ($this->resolved as $observation)
                     <div class="flex items-start gap-3 px-5 py-3">
                         <x-icon name="check-circle" class="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
-                        <div>
-                            <p class="text-sm text-slate-900">{{ $observation->financialAccount->name }} &mdash; {{ Money::formatMinor($observation->difference_minor) }} difference</p>
-                            <p class="text-xs text-slate-500">{{ $observation->resolution_note }}</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="break-words text-sm text-slate-900">{{ $observation->financialAccount->name }} &mdash; {{ Money::formatMinor($observation->difference_minor) }} difference</p>
+                            <p class="break-words text-xs text-slate-500">{{ $observation->resolution_note }}</p>
                         </div>
                     </div>
                 @endforeach
