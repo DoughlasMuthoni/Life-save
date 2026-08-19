@@ -1,58 +1,274 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# lifesave
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A private, single-owner **Personal Life Management System** — finance-first, built to expand
+into broader personal-life tooling over time. It gives its one user a single trustworthy place
+to answer "where do I actually stand financially, what needs my attention, and what should I
+do next" — with AI as an explainer and assistant, never as the source of financial truth.
 
-## About Laravel
+Full product rules, non-negotiables, and phase plan live in [`CLAUDE.md`](CLAUDE.md) at the
+repo root — that document governs this codebase and is the authoritative reference. This
+README is a practical map of how each module actually works.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Laravel 13 (PHP 8.2+) · MySQL 8 · Livewire 4 (single-file components) · Alpine.js · Tailwind
+CSS v4 + `@tailwindcss/forms` · Chart-ready but chart-free so far · database-backed queues ·
+PWA (manifest + service worker) · Claude API via a provider-agnostic AI abstraction.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Everything runs on ordinary PHP/MySQL shared hosting — no Docker, no Redis, no separate
+Node/SPA backend required.
 
-## Learning Laravel
+## How the codebase is organized
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Domain-oriented, not layer-oriented. Business logic lives in `app/Domain/{Module}/` — each
+module owns its `Models/`, `Services/`, `Enums/`, and (where relevant) `Contracts/` and
+`DataTransferObjects/`. Livewire single-file components under `resources/views/components/`
+are thin UI coordinators that call into these services; they hold almost no business logic
+themselves. The database is the source of truth for every financial figure — nothing in the
+UI, AI layer, or a cached column is ever treated as authoritative over the ledger.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+app/Domain/
+  Finance/      double-entry ledger, accounts, categories, transfers, reversals, reporting
+  Ingestion/    raw SMS → parsed → proposed transaction → confirmed posting
+  AI/           Claude provider abstraction + read-only financial assistant tools
+  Goals/        savings goals and virtual allocations
+  Wishlist/     wishlist items + deterministic affordability scenarios
+  Shopping/     purchases and line items, separate from how they were paid
+  Tasks/        a minimal personal task list
+  Audit/        an append-only log of important actions
+  Support/      small cross-domain primitives (e.g. the Priority enum)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## Finance — the ledger (`app/Domain/Finance`)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The core of the system and the one module every other module ultimately depends on. It's a
+real **double-entry ledger**: every financial event is a `Journal` with two or more balanced
+`LedgerEntry` postings (debits = credits, enforced at write time). Once posted, a `Journal`
+and its `LedgerEntry` rows are **immutable** — both models throw
+`ImmutableLedgerRecordException` if code ever tries to update or delete a posted entry
+in place (`Journal` allows exactly two fields to change post-creation: `is_reversed` and
+`reversed_journal_id`, so a reversal can reference what it reversed).
 
-## Code of Conduct
+**Models:** `FinancialAccount` (a real-world account: M-Pesa, M-Shwari, a bank account, cash)
+wraps a `LedgerAccount` (the actual ledger node its postings hit) plus `TransactionCategory`
+(income/expense categories) and `BalanceObservation` (an SMS-reported balance, stored as a
+data point to reconcile against — never used to overwrite a balance directly).
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**Services:**
+- `LedgerService::postJournal()` — the only path anything uses to write to the ledger; wraps
+  the journal + entries write in a DB transaction and rejects unbalanced postings
+  (`UnbalancedJournalException`).
+- `TransactionService::recordIncome()` / `recordExpense()` — manual income/expense entry;
+  expenses support an optional separate fee leg.
+- `TransferService::recordTransfer()` — moves money between the user's own accounts (e.g.
+  M-Pesa → M-Shwari). This is never recorded as income or expense — only asset ledger
+  accounts move.
+- `ReversalService::reverseJournal()` — the only way to correct a posted entry: it posts a
+  new, opposite journal referencing the original. Nothing is ever deleted or silently
+  overwritten.
+- `ReconciliationService` — compares SMS-observed balances against the calculated ledger
+  balance and tracks reconciliation status.
+- `FinancialReportingService` — every number the dashboard, monthly report, and AI assistant
+  show is computed here: financial summaries, category spending, period-over-period
+  comparisons, account balances, largest transactions, savings goal progress, and simple
+  unusual-spending detection. The AI layer never does this math itself.
 
-## Security Vulnerabilities
+**Money handling:** every amount is a `BIGINT` in minor units (KSh 5,000.00 is stored as
+`500000`) — never float/double. `Money::toMinorUnits()` / `Money::formatMinor()` are the only
+places that convert between human-entered strings and stored integers.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Pages: Accounts, Categories, Transactions, Record Income/Expense/Transfer, Reconciliation.
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Ingestion — raw SMS to posted transaction (`app/Domain/Ingestion`)
+
+There is no document upload and no OCR anywhere in this system, by design — the only input
+is raw pasted SMS text. The pipeline is fixed and every message goes through it in order:
+
+```
+raw pasted text → raw storage → normalization → provider detection →
+deterministic parser → AI fallback (only if the parser can't confidently handle it) →
+structured extraction → validation against the source text → duplicate detection →
+proposed transaction → user confirmation → ledger posting
+```
+
+**Models:** `FinancialMessage` stores the pasted text byte-for-byte, forever, as evidence —
+it is never mutated. `ProposedTransaction` is the mutable staging row a message produces; it
+stays mutable only until it's confirmed or rejected.
+
+**Services:**
+- `TextNormalizer` / `ProviderDetector` — clean and classify incoming text before parsing.
+- `MpesaParser` — the deterministic parser, tried first. Recognizes five M-Pesa SMS shapes
+  (send money, receive money, pay bill, buy goods, withdrawal) plus transaction cost/fee and
+  confirmation-code extraction via regex. Anything it can't confidently match falls through
+  rather than guessing.
+- `BankSmsParser` — a basic deterministic parser for common bank SMS formats.
+- `ClaudeProvider::parseFinancialMessage()` (AI fallback) — only invoked when no deterministic
+  parser confidently handles a message. Its output is a **proposal only**.
+- `AiExtractionValidator` — independently re-checks every AI-extracted field (amount, date,
+  counterparty, fee) against the original raw text before anything is allowed to reach a
+  proposed transaction. Schema-valid AI JSON is not treated as correct on its own.
+- `DuplicateDetectionService` — layered duplicate checks: provider + external transaction
+  reference, a hash of the normalized text, and a (provider, account, amount, timestamp,
+  counterparty, type) fingerprint. Fuzzy matches can only flag a possible duplicate for human
+  review — nothing here ever auto-deletes or auto-merges a financial record.
+- `FinancialMessageIngestionService` — orchestrates the pipeline end to end for a pasted batch.
+- `ProposedTransactionConfirmationService` — the only path from a proposed transaction to an
+  actual ledger posting; this is where user-supplied overrides (account, category) get applied
+  and validated before `LedgerService` is ever called.
+
+An unknown message is stored as evidence and surfaced under "Needs review" — it never
+silently becomes a financial record. Page: **Messages** (paste box, ready-to-review proposals,
+possible-duplicate warnings, needs-review list).
+
+---
+
+## AI — Claude as narrator, never as ledger (`app/Domain/AI`)
+
+`AIProviderInterface` is a small, deliberately narrow contract (`parseFinancialMessage()`,
+`answerQuestion()`) implemented by `ClaudeProvider`, so a second provider could be swapped in
+later without touching any domain code. The Claude API key never reaches the frontend — every
+call goes through the Laravel backend.
+
+The AI never gets database access, SQL, or a generic "run a query" tool. Instead,
+`FinancialAssistantService` exposes exactly seven whitelisted, backend-computed tools, each a
+closure bound to the authenticated user: `get_financial_summary`, `get_category_spending`,
+`compare_financial_periods`, `get_account_balances`, `get_savings_goal_progress`,
+`calculate_wishlist_affordability`, `get_transactions`. The model calls these tools (via the
+Anthropic SDK's tool-runner loop) and narrates what they return — it never sums or estimates a
+figure itself. The AI Assistant page is explicitly **read-only**: nothing it does can write to
+the ledger.
+
+In tests, `AIProviderInterface` is always rebound to `FakeAIProvider` — no automated test ever
+calls the real Anthropic API.
+
+Page: **AI Assistant** (suggested questions + free-form chat over the tools above).
+
+---
+
+## Goals — savings goals and virtual allocations (`app/Domain/Goals`)
+
+A `Goal` (e.g. "Emergency fund", target amount, optional monthly target, priority) tracks
+progress via `GoalAllocationEvent` rows — an append-only history, not a bare mutable number.
+`SavingsAllocationService` handles allocate / release / reallocate and detects
+over-allocation. Allocations are **virtual**: earmarking money toward a goal never moves it out
+of the real account balance it lives in, and virtual allocations are never double-counted as
+separate money in net worth — they're a view over the same ledger balances, not new funds.
+
+Page: **Savings Goals**, including a breakdown of real account balances vs. virtual goal
+allocations per account.
+
+## Wishlist (`app/Domain/Wishlist`)
+
+`WishlistItem` (name, estimated price, priority, optional linked `Goal`, target date) tracks
+status through `Considering → Saving → Ready → Purchased/Cancelled`.
+`WishlistAffordabilityService` computes three deterministic scenarios per item —
+**Conservative / Current Trend / Aggressive** — projecting months-to-afford from the linked
+goal's planned monthly contribution. No scenario is ever guessed by the AI; it's arithmetic
+over real ledger and goal data.
+
+Page: **Wishlist** — active items with affordability mini-cards, plus purchased/cancelled
+history.
+
+## Shopping (`app/Domain/Shopping`)
+
+`Purchase` (what was bought, from which `Merchant`, optionally linked to the `Journal` that
+paid for it) with `PurchaseItem` line items. This is deliberately separate from the finance
+ledger: a purchase's items are never inferred from an SMS — they only exist if entered as an
+actual purchase record. `PurchaseService` / `MerchantService` handle creation and
+merchant find-or-create; `Purchase::itemsReconcileWithTotal()` flags when logged item lines
+don't add up to the purchase total.
+
+Page: **Shopping** — log a purchase, optionally link it to an existing unlinked expense
+transaction, add items after the fact.
+
+## Tasks (`app/Domain/Tasks`)
+
+Deliberately minimal for V1: a `Task` (title, priority via the shared `Priority` enum, optional
+due date/notes) moves through `Pending → Completed` or `Cancelled` via `TaskService`.
+Calendar, habits, and notes are explicitly out of scope here — see `CLAUDE.md` §20.
+
+Page: **Tasks** — open list, add form, recently-closed history with reopen.
+
+## Audit (`app/Domain/Audit`)
+
+`AuditEvent` is an append-only log (`AuditLogger` service, `AuditAction` enum) recording the
+things that matter: transactions created/posted/reversed/rejected, SMS parsed, duplicates
+detected, AI parses accepted/rejected, accounts created, savings allocations changed. Never
+logs passwords, API keys, or auth secrets. Posted financial records are traceable back to
+their source — a manual entry vs. which `FinancialMessage`, which parser/version, which AI
+response.
+
+## Support (`app/Domain/Support`)
+
+Small primitives shared across domains rather than duplicated — currently just the `Priority`
+enum (`LOW`/`MEDIUM`/`HIGH`) used by both `Goal` and `WishlistItem`/`Task`.
+
+---
+
+## Reports and Dashboard
+
+`Dashboard` and `reports/Monthly` are Livewire pages, not their own domain — they're read-only
+views assembled entirely from `FinancialReportingService` and the `Goals`/`Wishlist` services.
+The dashboard's information hierarchy (KPI cards → cashflow/spending → attention items →
+savings goals → recent transactions → AI insights → task snippet) intentionally matches the
+priority order in `CLAUDE.md` §2: financial state first, AI narration last.
+
+## UI component library
+
+`resources/views/components/icon.blade.php` (a single inline-SVG icon set) and
+`resources/views/components/ui/{card,stat-card,badge,button,empty-state,page-header,section}.blade.php`
+are the shared building blocks every page is built from — colored circular icon badges,
+`rounded-2xl` cards, consistent empty states, and KSh-prefixed amount inputs throughout.
+`layouts/authenticated.blade.php` is the shell: a fixed left sidebar (Dashboard / Finance /
+Planning / Insights) with an Alpine-powered mobile toggle. Native form controls
+(`input`/`select`/`textarea`/checkbox) are reset consistently app-wide via
+`@tailwindcss/forms`.
+
+---
+
+## Testing
+
+Tests mirror the domain structure under `tests/Unit/Domain/...` and `tests/Feature/...`.
+Financial logic (income/expense/transfer posting, fees, reversals, duplicate detection,
+transaction-id uniqueness, balanced-journal invariant, balance derivation from postings,
+SMS reconciliation, "ambiguous SMS never auto-posts", "AI parse can't bypass backend
+validation") is covered by both unit tests against the domain services and feature tests that
+exercise full Livewire page flows.
+
+```bash
+php artisan test          # full suite
+./vendor/bin/pint          # code style
+npm run build               # frontend assets
+```
+
+`Tests\TestCase::setUp()` always rebinds `AIProviderInterface` to a `FakeAIProvider` — the
+real Claude API is never called by the automated suite.
+
+## Local setup
+
+```bash
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
+# configure DB credentials in .env, then:
+php artisan migrate
+npm run build
+php artisan serve
+```
+
+Deployment target is `douglas.waterliftsolar.africa` on ordinary shared PHP/MySQL hosting —
+see `CLAUDE.md` §17 for the constraints that implies (no required Docker/Redis, no
+permanently-running queue worker, database-backed queue driven by cron).
+
+## Where the rules live
+
+This README describes *how* the code works. *Why* it's built this way, and the non-negotiable
+rules for changing ledger logic, SMS parsing, or the AI boundary, live in
+[`CLAUDE.md`](CLAUDE.md) — read it before touching anything under `Finance/`, `Ingestion/`, or
+`AI/`.
