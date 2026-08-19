@@ -30,6 +30,7 @@
                         <a href="{{ route('savings-goals') }}" class="hover:text-slate-900 {{ request()->routeIs('savings-goals') ? 'text-slate-900' : '' }}">Savings Goals</a>
                         <a href="{{ route('wishlist') }}" class="hover:text-slate-900 {{ request()->routeIs('wishlist') ? 'text-slate-900' : '' }}">Wishlist</a>
                         <a href="{{ route('shopping') }}" class="hover:text-slate-900 {{ request()->routeIs('shopping') ? 'text-slate-900' : '' }}">Shopping</a>
+                        <a href="{{ route('tasks') }}" class="hover:text-slate-900 {{ request()->routeIs('tasks') ? 'text-slate-900' : '' }}">Tasks</a>
                         <a href="{{ route('reports.monthly') }}" class="hover:text-slate-900 {{ request()->routeIs('reports.*') ? 'text-slate-900' : '' }}">Reports</a>
                         <a href="{{ route('ai-assistant') }}" class="hover:text-slate-900 {{ request()->routeIs('ai-assistant') ? 'text-slate-900' : '' }}">AI Assistant</a>
                         <a href="{{ route('finance.accounts') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.accounts') ? 'text-slate-900' : '' }}">Accounts</a>
