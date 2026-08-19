@@ -18,4 +18,6 @@ enum AuditAction: string
     case PROPOSED_TRANSACTION_REJECTED = 'proposed_transaction.rejected';
     case AI_PARSE_ACCEPTED = 'ai.parse_accepted';
     case AI_PARSE_REJECTED = 'ai.parse_rejected';
+    case RECONCILIATION_MISMATCH_DETECTED = 'reconciliation.mismatch_detected';
+    case RECONCILIATION_RESOLVED = 'reconciliation.resolved';
 }

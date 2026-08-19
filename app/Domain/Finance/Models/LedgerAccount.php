@@ -5,6 +5,7 @@ namespace App\Domain\Finance\Models;
 use App\Domain\Finance\Enums\LedgerAccountType;
 use App\Domain\Finance\Enums\LedgerEntrySide;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -51,6 +52,26 @@ class LedgerAccount extends Model
 
         $sameSideTotal = $this->entries()->where('side', $normalSide->value)->sum('amount_minor');
         $oppositeSideTotal = $this->entries()->where('side', $normalSide->opposite()->value)->sum('amount_minor');
+
+        return (int) $sameSideTotal - (int) $oppositeSideTotal;
+    }
+
+    /**
+     * The balance as of a point in time, considering only journals whose
+     * occurred_at is on or before $cutoff. Used for reconciliation: an SMS
+     * reports the balance at the moment of that specific transaction, which
+     * is only the same as balanceMinor() if nothing else has been posted
+     * since — this lets reconciliation compare like with like even when
+     * messages are confirmed out of chronological order.
+     */
+    public function balanceMinorAsOf(CarbonInterface $cutoff): int
+    {
+        $normalSide = $this->normalBalanceSide();
+
+        $upToCutoff = fn () => $this->entries()->whereHas('journal', fn ($query) => $query->where('occurred_at', '<=', $cutoff));
+
+        $sameSideTotal = $upToCutoff()->where('side', $normalSide->value)->sum('amount_minor');
+        $oppositeSideTotal = $upToCutoff()->where('side', $normalSide->opposite()->value)->sum('amount_minor');
 
         return (int) $sameSideTotal - (int) $oppositeSideTotal;
     }

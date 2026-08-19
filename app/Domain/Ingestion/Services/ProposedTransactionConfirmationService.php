@@ -4,7 +4,9 @@ namespace App\Domain\Ingestion\Services;
 
 use App\Domain\Audit\Enums\AuditAction;
 use App\Domain\Audit\Services\AuditLogger;
+use App\Domain\Finance\Models\FinancialAccount;
 use App\Domain\Finance\Models\Journal;
+use App\Domain\Finance\Services\ReconciliationService;
 use App\Domain\Finance\Services\TransactionService;
 use App\Domain\Finance\Services\TransferService;
 use App\Domain\Ingestion\Enums\ProposedTransactionStatus;
@@ -28,6 +30,7 @@ class ProposedTransactionConfirmationService
     public function __construct(
         private readonly TransactionService $transactions,
         private readonly TransferService $transfers,
+        private readonly ReconciliationService $reconciliation,
         private readonly AuditLogger $auditLogger,
     ) {}
 
@@ -59,6 +62,10 @@ class ProposedTransactionConfirmationService
             $proposed->status = ProposedTransactionStatus::CONFIRMED;
             $proposed->journal_id = $journal->id;
             $proposed->save();
+
+            if ($proposed->reported_balance_minor !== null) {
+                $this->recordReconciliation($user, $proposed, $account);
+            }
 
             return $journal;
         });
@@ -137,6 +144,26 @@ class ProposedTransactionConfirmationService
             description: $proposed->description ?: $proposed->counterparty,
             sourceType: 'financial_message',
             sourceId: $proposed->financial_message_id,
+        );
+    }
+
+    /**
+     * The SMS's "New M-PESA balance is..." line is the account's balance
+     * as of THIS transaction — record it as an observation against the
+     * primary (source) account rather than trusting it as the current
+     * balance (CLAUDE.md §"Balance Reconciliation"). This never blocks
+     * confirmation: a reconciliation mismatch is something to flag for
+     * review, not a reason to refuse posting a transaction the user just
+     * explicitly confirmed.
+     */
+    private function recordReconciliation(User $user, ProposedTransaction $proposed, FinancialAccount $account): void
+    {
+        $this->reconciliation->recordObservation(
+            user: $user,
+            account: $account,
+            observedBalanceMinor: $proposed->reported_balance_minor,
+            observedAt: $proposed->transaction_time,
+            sourceMessage: $proposed->financialMessage,
         );
     }
 
