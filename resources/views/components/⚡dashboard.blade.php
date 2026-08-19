@@ -104,87 +104,92 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-slate-900">Welcome, {{ auth()->user()->name }}</h1>
-    <p class="mt-1 text-sm text-slate-500">{{ now()->format('l, F j, Y') }}</p>
+    <x-ui.page-header :title="'Welcome, '.explode(' ', auth()->user()->name)[0]" :subtitle="now()->format('l, F j, Y')" />
 
     @if (! $this->hasAccounts)
-        <div class="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center">
-            <p class="text-sm text-slate-600">You don't have any financial accounts yet.</p>
-            <a href="{{ route('finance.accounts') }}" class="mt-3 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-                Add your first account
-            </a>
-        </div>
+        <x-ui.empty-state icon="wallet" title="No financial accounts yet" description="Add your M-Pesa, bank, or cash accounts to start seeing your financial picture here." class="mt-6">
+            <x-slot:actions>
+                <x-ui.button :href="route('finance.accounts')" variant="primary">
+                    <x-icon name="plus" class="h-4 w-4" /> Add your first account
+                </x-ui.button>
+            </x-slot:actions>
+        </x-ui.empty-state>
     @else
         {{-- 1. Financial state --}}
         <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
-                <p class="text-sm text-slate-500">Net Available Cash</p>
-                <p class="mt-1 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->summary['net_available_cash']) }}</p>
-            </div>
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
-                <p class="text-sm text-slate-500">M-Pesa Balance</p>
-                <p class="mt-1 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->summary['mpesa_balance']) }}</p>
-            </div>
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
-                <p class="text-sm text-slate-500">Savings Total</p>
-                <p class="mt-1 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->summary['savings_total']) }}</p>
-            </div>
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
-                <p class="text-sm text-slate-500">This Month Spending</p>
-                <p class="mt-1 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->summary['this_month']['expense_minor']) }}</p>
-            </div>
+            <x-ui.stat-card label="Net Available Cash" icon="wallet" color="blue">
+                {{ Money::formatMinor($this->summary['net_available_cash']) }}
+            </x-ui.stat-card>
+            <x-ui.stat-card label="M-Pesa Balance" icon="phone" color="green">
+                {{ Money::formatMinor($this->summary['mpesa_balance']) }}
+            </x-ui.stat-card>
+            <x-ui.stat-card label="Savings Total" icon="flag" color="purple">
+                {{ Money::formatMinor($this->summary['savings_total']) }}
+            </x-ui.stat-card>
+            <x-ui.stat-card label="This Month Spending" icon="cash" color="amber">
+                {{ Money::formatMinor($this->summary['this_month']['expense_minor']) }}
+            </x-ui.stat-card>
         </div>
 
         {{-- 2. Changes / trends --}}
         <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
-                <h2 class="text-sm font-semibold text-slate-700">This month vs last month</h2>
-                <div class="mt-3 grid grid-cols-2 gap-4 text-sm">
+            <x-ui.section title="This month vs last month">
+                <div class="grid grid-cols-2 gap-4 p-5 text-sm">
                     <div>
                         <p class="text-slate-500">Income</p>
-                        <p class="font-medium text-slate-900">{{ Money::formatMinor($this->comparison['period_b']['income_minor']) }}</p>
+                        <p class="mt-0.5 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->comparison['period_b']['income_minor']) }}</p>
                         @if ($this->comparison['income_change_percent'] !== null)
-                            <p class="text-xs {{ $this->comparison['income_change_percent'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                            <p class="mt-0.5 flex items-center gap-1 text-xs font-medium {{ $this->comparison['income_change_percent'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <x-icon :name="$this->comparison['income_change_percent'] >= 0 ? 'trend-up' : 'trend-down'" class="h-3.5 w-3.5" />
                                 {{ $this->comparison['income_change_percent'] >= 0 ? '+' : '' }}{{ $this->comparison['income_change_percent'] }}%
                             </p>
                         @endif
                     </div>
                     <div>
                         <p class="text-slate-500">Expenses</p>
-                        <p class="font-medium text-slate-900">{{ Money::formatMinor($this->comparison['period_b']['expense_minor']) }}</p>
+                        <p class="mt-0.5 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->comparison['period_b']['expense_minor']) }}</p>
                         @if ($this->comparison['expense_change_percent'] !== null)
-                            <p class="text-xs {{ $this->comparison['expense_change_percent'] <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                            <p class="mt-0.5 flex items-center gap-1 text-xs font-medium {{ $this->comparison['expense_change_percent'] <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                <x-icon :name="$this->comparison['expense_change_percent'] >= 0 ? 'trend-up' : 'trend-down'" class="h-3.5 w-3.5" />
                                 {{ $this->comparison['expense_change_percent'] >= 0 ? '+' : '' }}{{ $this->comparison['expense_change_percent'] }}%
                             </p>
                         @endif
                     </div>
                 </div>
-                <a href="{{ route('reports.monthly') }}" class="mt-3 inline-block text-xs font-medium text-blue-600 hover:text-blue-700">View full report &rarr;</a>
-            </div>
+                <div class="border-t border-slate-100 px-5 py-3">
+                    <a href="{{ route('reports.monthly') }}" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                        View full report <x-icon name="chevron-right" class="h-3 w-3" />
+                    </a>
+                </div>
+            </x-ui.section>
 
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
-                <h2 class="text-sm font-semibold text-slate-700">Top categories this month</h2>
-                <div class="mt-3 space-y-2">
-                    @forelse ($this->categorySpending as $category)
-                        <div class="flex items-center justify-between text-sm">
-                            <span class="text-slate-600">{{ $category['name'] }}</span>
+            <x-ui.section title="Top categories this month">
+                <div class="divide-y divide-slate-100">
+                    @forelse ($this->categorySpending as $i => $category)
+                        <div class="flex items-center justify-between px-5 py-2.5 text-sm">
+                            <span class="flex items-center gap-2 text-slate-600">
+                                <span class="h-2 w-2 shrink-0 rounded-full {{ ['bg-blue-500', 'bg-purple-500', 'bg-amber-500', 'bg-green-500', 'bg-red-400'][$i % 5] }}"></span>
+                                {{ $category['name'] }}
+                            </span>
                             <span class="font-medium text-slate-900">{{ Money::formatMinor($category['amount_minor']) }}</span>
                         </div>
                     @empty
-                        <p class="text-sm text-slate-400">No spending yet this month.</p>
+                        <p class="px-5 py-6 text-center text-sm text-slate-400">No spending yet this month.</p>
                     @endforelse
                 </div>
-            </div>
+            </x-ui.section>
         </div>
 
         {{-- 3. Items requiring attention --}}
         @if (count($this->attentionItems) > 0)
-            <div class="mt-6 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
-                <h2 class="text-sm font-semibold text-amber-800">Needs attention</h2>
-                <div class="mt-2 space-y-1">
+            <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                <h2 class="flex items-center gap-1.5 text-sm font-semibold text-amber-800">
+                    <x-icon name="warning" class="h-4 w-4" /> Needs attention
+                </h2>
+                <div class="mt-2 space-y-1.5">
                     @foreach ($this->attentionItems as $item)
-                        <a href="{{ $item['url'] }}" class="block text-sm font-medium {{ $item['tone'] === 'red' ? 'text-red-700' : 'text-amber-800' }} hover:underline">
-                            {{ $item['label'] }} &rarr;
+                        <a href="{{ $item['url'] }}" class="flex items-center gap-1 text-sm font-medium {{ $item['tone'] === 'red' ? 'text-red-700 hover:text-red-800' : 'text-amber-800 hover:text-amber-900' }}">
+                            {{ $item['label'] }} <x-icon name="chevron-right" class="h-3.5 w-3.5" />
                         </a>
                     @endforeach
                 </div>
@@ -193,65 +198,89 @@ new #[Layout('layouts.authenticated')] class extends Component
 
         {{-- 4. Savings goals --}}
         @if ($this->savingsGoals->isNotEmpty())
-            <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-slate-700">Savings goals</h2>
-                    <a href="{{ route('savings-goals') }}" class="text-xs font-medium text-blue-600 hover:text-blue-700">View all &rarr;</a>
-                </div>
-                <div class="mt-3 space-y-3">
+            <x-ui.section title="Savings goals" class="mt-6">
+                <x-slot:actions>
+                    <a href="{{ route('savings-goals') }}" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                        View all <x-icon name="chevron-right" class="h-3 w-3" />
+                    </a>
+                </x-slot:actions>
+                <div class="space-y-4 p-5">
                     @foreach ($this->savingsGoals as $goal)
                         <div>
                             <div class="flex items-center justify-between text-sm">
                                 <span class="text-slate-700">{{ $goal['title'] }}</span>
-                                <span class="text-slate-500">{{ $goal['progress_percent'] }}%</span>
+                                <span class="font-medium text-slate-500">{{ $goal['progress_percent'] }}%</span>
                             </div>
-                            <div class="mt-1 h-1.5 rounded-full bg-slate-100">
+                            <div class="mt-1.5 h-1.5 rounded-full bg-slate-100">
                                 <div class="h-1.5 rounded-full bg-blue-600" style="width: {{ $goal['progress_percent'] }}%"></div>
                             </div>
                         </div>
                     @endforeach
                 </div>
-            </div>
+            </x-ui.section>
         @endif
 
         {{-- 5. Recent transactions --}}
-        <div class="mt-6 rounded-xl border border-slate-200 bg-white">
-            <div class="flex items-center justify-between px-4 py-3">
-                <h2 class="text-sm font-semibold text-slate-700">Recent transactions</h2>
-                <a href="{{ route('finance.transactions') }}" class="text-xs font-medium text-blue-600 hover:text-blue-700">View all &rarr;</a>
-            </div>
+        <x-ui.section title="Recent transactions" class="mt-6">
+            <x-slot:actions>
+                <a href="{{ route('finance.transactions') }}" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                    View all <x-icon name="chevron-right" class="h-3 w-3" />
+                </a>
+            </x-slot:actions>
             <div class="divide-y divide-slate-100">
                 @forelse ($this->recentTransactions as $journal)
-                    <div class="flex items-center justify-between px-4 py-3 text-sm">
-                        <div>
-                            <p class="text-slate-900">{{ $journal->description ?: ucfirst($journal->journal_type->value) }}</p>
+                    @php
+                        $typeColor = match ($journal->journal_type->value) {
+                            'income' => 'green',
+                            'expense' => 'red',
+                            'transfer' => 'blue',
+                            default => 'slate',
+                        };
+                        $typeIcon = match ($journal->journal_type->value) {
+                            'income' => 'trend-up',
+                            'expense' => 'trend-down',
+                            'transfer' => 'arrow-path',
+                            default => 'list',
+                        };
+                    @endphp
+                    <div class="flex items-center gap-3 px-5 py-3">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {{ ['green' => 'bg-green-50 text-green-600', 'red' => 'bg-red-50 text-red-600', 'blue' => 'bg-blue-50 text-blue-600', 'slate' => 'bg-slate-100 text-slate-500'][$typeColor] }}">
+                            <x-icon :name="$typeIcon" class="h-4 w-4" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-sm text-slate-900">{{ $journal->description ?: ucfirst($journal->journal_type->value) }}</p>
                             <p class="text-xs text-slate-400">{{ $journal->occurred_at->format('M j, Y') }}</p>
                         </div>
-                        <span class="text-slate-500">{{ ucfirst($journal->journal_type->value) }}</span>
+                        <x-ui.badge :color="$typeColor">{{ ucfirst($journal->journal_type->value) }}</x-ui.badge>
                     </div>
                 @empty
-                    <p class="px-4 py-6 text-center text-sm text-slate-500">No transactions yet.</p>
+                    <p class="px-5 py-8 text-center text-sm text-slate-500">No transactions yet.</p>
                 @endforelse
             </div>
-        </div>
+        </x-ui.section>
 
         {{-- 7. Insights (deterministic — see FinancialReportingService; open-ended questions go to the AI Assistant) --}}
-        <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-slate-700">Insights</h2>
-                <a href="{{ route('ai-assistant') }}" class="text-xs font-medium text-blue-600 hover:text-blue-700">Ask the AI Assistant &rarr;</a>
-            </div>
-            <div class="mt-2 space-y-1 text-sm text-slate-600">
+        <x-ui.section title="Insights" class="mt-6">
+            <x-slot:actions>
+                <a href="{{ route('ai-assistant') }}" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                    <x-icon name="sparkles" class="h-3.5 w-3.5" /> Ask the AI Assistant
+                </a>
+            </x-slot:actions>
+            <div class="space-y-2 p-5 text-sm text-slate-600">
                 @if ($this->comparison['expense_change_percent'] !== null)
-                    <p>
+                    <p class="flex items-start gap-2">
+                        <x-icon name="info" class="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                         You've spent {{ abs($this->comparison['expense_change_percent']) }}%
                         {{ $this->comparison['expense_change_percent'] <= 0 ? 'less' : 'more' }} than last month.
                     </p>
                 @endif
                 @if ($this->categorySpending->isNotEmpty())
-                    <p>Your top spending category this month is {{ $this->categorySpending->first()['name'] }}.</p>
+                    <p class="flex items-start gap-2">
+                        <x-icon name="tag" class="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                        Your top spending category this month is {{ $this->categorySpending->first()['name'] }}.
+                    </p>
                 @endif
             </div>
-        </div>
+        </x-ui.section>
     @endif
 </div>

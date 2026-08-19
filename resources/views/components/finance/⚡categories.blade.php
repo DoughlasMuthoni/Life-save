@@ -53,27 +53,25 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-semibold text-slate-900">Categories</h1>
-            <p class="mt-1 text-sm text-slate-500">Labels for where money comes from and where it goes.</p>
-        </div>
-        <button wire:click="$set('showForm', true)" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            + Add category
-        </button>
-    </div>
+    <x-ui.page-header title="Categories" subtitle="Labels for where money comes from and where it goes.">
+        <x-slot:actions>
+            <x-ui.button wire:click="$set('showForm', true)" variant="primary">
+                <x-icon name="plus" class="h-4 w-4" /> Add category
+            </x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if ($showForm)
-        <form wire:submit="create" class="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+        <form wire:submit="create" class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Name</label>
-                    <input wire:model="name" type="text" placeholder="e.g. Groceries" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="name" type="text" placeholder="e.g. Groceries" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                     @error('name') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Type</label>
-                    <select wire:model="type" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <select wire:model="type" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         <option value="">Select&hellip;</option>
                         <option value="income">Income</option>
                         <option value="expense">Expense</option>
@@ -82,32 +80,40 @@ new #[Layout('layouts.authenticated')] class extends Component
                 </div>
             </div>
             <div class="flex gap-3">
-                <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Save category</button>
-                <button type="button" wire:click="$set('showForm', false)" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                <x-ui.button type="submit" variant="primary">Save category</x-ui.button>
+                <x-ui.button type="button" wire:click="$set('showForm', false)" variant="secondary">Cancel</x-ui.button>
             </div>
         </form>
     @endif
 
     <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <div class="rounded-xl border border-slate-200 bg-white">
-            <h2 class="border-b border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700">Income</h2>
+        <x-ui.section>
+            <x-slot:title>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-green-500"></span> Income</span>
+            </x-slot:title>
             <div class="divide-y divide-slate-100">
                 @forelse ($this->incomeCategories as $category)
-                    <p class="px-6 py-3 text-sm text-slate-900">{{ $category->name }}</p>
+                    <p class="flex items-center gap-2 px-5 py-3 text-sm text-slate-900">
+                        <x-icon name="tag" class="h-4 w-4 text-slate-400" /> {{ $category->name }}
+                    </p>
                 @empty
-                    <p class="px-6 py-6 text-center text-sm text-slate-500">No income categories yet.</p>
+                    <p class="px-5 py-8 text-center text-sm text-slate-500">No income categories yet.</p>
                 @endforelse
             </div>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white">
-            <h2 class="border-b border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700">Expense</h2>
+        </x-ui.section>
+        <x-ui.section>
+            <x-slot:title>
+                <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-red-400"></span> Expense</span>
+            </x-slot:title>
             <div class="divide-y divide-slate-100">
                 @forelse ($this->expenseCategories as $category)
-                    <p class="px-6 py-3 text-sm text-slate-900">{{ $category->name }}</p>
+                    <p class="flex items-center gap-2 px-5 py-3 text-sm text-slate-900">
+                        <x-icon name="tag" class="h-4 w-4 text-slate-400" /> {{ $category->name }}
+                    </p>
                 @empty
-                    <p class="px-6 py-6 text-center text-sm text-slate-500">No expense categories yet.</p>
+                    <p class="px-5 py-8 text-center text-sm text-slate-500">No expense categories yet.</p>
                 @endforelse
             </div>
-        </div>
+        </x-ui.section>
     </div>
 </div>

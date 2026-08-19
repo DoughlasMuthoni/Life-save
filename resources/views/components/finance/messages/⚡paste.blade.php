@@ -153,16 +153,18 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-slate-900">Paste Financial Messages</h1>
-    <p class="mt-1 text-sm text-slate-500">
-        Paste M-Pesa SMS text directly below &mdash; no documents, no screenshots. Separate multiple messages with a blank line.
-    </p>
+    <x-ui.page-header
+        title="Paste Financial Messages"
+        subtitle="Paste M-Pesa SMS text directly below — no documents, no screenshots. Separate multiple messages with a blank line."
+    />
 
     @if (session('status'))
-        <div class="mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
+        <div class="mt-4 flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+            <x-icon name="check-circle" class="h-4 w-4" /> {{ session('status') }}
+        </div>
     @endif
 
-    <form wire:submit="parseMessages" class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
+    <form wire:submit="parseMessages" class="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
         <textarea
             wire:model="pasteText"
             rows="6"
@@ -170,24 +172,26 @@ new #[Layout('layouts.authenticated')] class extends Component
             class="block w-full rounded-lg border-slate-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
         ></textarea>
         @error('pasteText') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
-        <div class="mt-3 flex justify-between">
-            <p class="text-xs text-slate-400">Only M-Pesa messages are parsed automatically in this version.</p>
-            <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" wire:loading.attr="disabled">
-                Parse Messages
-            </button>
+        <div class="mt-3 flex items-center justify-between">
+            <p class="flex items-center gap-1.5 text-xs text-slate-400">
+                <x-icon name="info" class="h-3.5 w-3.5" /> Only M-Pesa messages are parsed automatically in this version.
+            </p>
+            <x-ui.button type="submit" variant="primary" wire:loading.attr="disabled">
+                <x-icon name="chat" class="h-4 w-4" /> Parse Messages
+            </x-ui.button>
         </div>
     </form>
 
     {{-- Ready to review --}}
     <div class="mt-8">
-        <h2 class="text-sm font-semibold text-slate-700">Ready to review ({{ $this->pendingProposals->count() }})</h2>
+        <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            Ready to review <x-ui.badge color="blue">{{ $this->pendingProposals->count() }}</x-ui.badge>
+        </h2>
         <div class="mt-3 space-y-4">
             @forelse ($this->pendingProposals as $proposal)
                 @include('components.finance.messages.partials.proposal-card', ['proposal' => $proposal, 'duplicate' => false, 'accounts' => $this->accounts, 'incomeCategories' => $this->incomeCategories, 'expenseCategories' => $this->expenseCategories])
             @empty
-                <p class="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center text-sm text-slate-500">
-                    Nothing waiting for review.
-                </p>
+                <x-ui.empty-state icon="chat" title="Nothing waiting for review" />
             @endforelse
         </div>
     </div>
@@ -195,7 +199,9 @@ new #[Layout('layouts.authenticated')] class extends Component
     {{-- Possible duplicates --}}
     @if ($this->duplicateProposals->isNotEmpty())
         <div class="mt-8">
-            <h2 class="text-sm font-semibold text-amber-700">Possible duplicates ({{ $this->duplicateProposals->count() }})</h2>
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-amber-700">
+                <x-icon name="warning" class="h-4 w-4" /> Possible duplicates <x-ui.badge color="amber">{{ $this->duplicateProposals->count() }}</x-ui.badge>
+            </h2>
             <div class="mt-3 space-y-4">
                 @foreach ($this->duplicateProposals as $proposal)
                     @include('components.finance.messages.partials.proposal-card', ['proposal' => $proposal, 'duplicate' => true, 'accounts' => $this->accounts, 'incomeCategories' => $this->incomeCategories, 'expenseCategories' => $this->expenseCategories])
@@ -207,13 +213,15 @@ new #[Layout('layouts.authenticated')] class extends Component
     {{-- Needs review --}}
     @if ($this->needsReviewMessages->isNotEmpty())
         <div class="mt-8">
-            <h2 class="text-sm font-semibold text-slate-700">Unknown / Needs review ({{ $this->needsReviewMessages->count() }})</h2>
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                Unknown / Needs review <x-ui.badge color="slate">{{ $this->needsReviewMessages->count() }}</x-ui.badge>
+            </h2>
             <p class="mt-1 text-xs text-slate-400">
                 No parser recognized these yet (not M-Pesa, or an unrecognized M-Pesa format). They are kept as evidence but no transaction was proposed.
             </p>
-            <div class="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+            <div class="mt-3 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
                 @foreach ($this->needsReviewMessages as $message)
-                    <p class="px-6 py-3 font-mono text-xs text-slate-600">{{ \Illuminate\Support\Str::limit($message->raw_text, 200) }}</p>
+                    <p class="px-5 py-3 font-mono text-xs text-slate-600">{{ \Illuminate\Support\Str::limit($message->raw_text, 200) }}</p>
                 @endforeach
             </div>
         </div>

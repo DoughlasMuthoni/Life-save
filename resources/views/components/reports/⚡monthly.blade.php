@@ -70,99 +70,101 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-semibold text-slate-900">Monthly Report</h1>
-            <p class="mt-1 text-sm text-slate-500">Deterministic figures, calculated directly from your ledger.</p>
-        </div>
-        <div class="flex items-center gap-2">
-            <button wire:click="previousMonth" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">&larr;</button>
-            <span class="w-32 text-center text-sm font-medium text-slate-900">{{ $this->periodStart()->format('F Y') }}</span>
-            <button wire:click="nextMonth" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50">&rarr;</button>
-        </div>
-    </div>
+    <x-ui.page-header title="Monthly Report" subtitle="Deterministic figures, calculated directly from your ledger.">
+        <x-slot:actions>
+            <div class="flex items-center gap-2">
+                <button wire:click="previousMonth" aria-label="Previous month" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">
+                    <x-icon name="chevron-left" class="h-4 w-4" />
+                </button>
+                <span class="w-32 text-center text-sm font-medium text-slate-900">{{ $this->periodStart()->format('F Y') }}</span>
+                <button wire:click="nextMonth" aria-label="Next month" class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">
+                    <x-icon name="chevron-right" class="h-4 w-4" />
+                </button>
+            </div>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-sm text-slate-500">Income</p>
-            <p class="mt-1 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->summary['income_minor']) }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-sm text-slate-500">Expenses</p>
-            <p class="mt-1 text-lg font-semibold text-slate-900">{{ Money::formatMinor($this->summary['expense_minor']) }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-sm text-slate-500">Net Cash Flow</p>
-            <p class="mt-1 text-lg font-semibold {{ $this->summary['net_cash_flow_minor'] >= 0 ? 'text-slate-900' : 'text-red-600' }}">
-                {{ Money::formatMinor($this->summary['net_cash_flow_minor']) }}
-            </p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4">
-            <p class="text-sm text-slate-500">Savings Rate</p>
-            <p class="mt-1 text-lg font-semibold text-slate-900">{{ $this->summary['savings_rate_percent'] }}%</p>
-        </div>
+        <x-ui.stat-card icon="trend-up" label="Income" color="green">
+            {{ Money::formatMinor($this->summary['income_minor']) }}
+        </x-ui.stat-card>
+        <x-ui.stat-card icon="trend-down" label="Expenses" color="red">
+            {{ Money::formatMinor($this->summary['expense_minor']) }}
+        </x-ui.stat-card>
+        <x-ui.stat-card icon="scale" label="Net Cash Flow" :color="$this->summary['net_cash_flow_minor'] >= 0 ? 'blue' : 'red'">
+            {{ Money::formatMinor($this->summary['net_cash_flow_minor']) }}
+        </x-ui.stat-card>
+        <x-ui.stat-card icon="flag" label="Savings Rate" color="purple">
+            {{ $this->summary['savings_rate_percent'] }}%
+        </x-ui.stat-card>
     </div>
 
-    <div class="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-        <h2 class="text-sm font-semibold text-slate-700">Compared to the previous month</h2>
-        <div class="mt-3 grid grid-cols-2 gap-6 text-sm sm:grid-cols-4">
+    <x-ui.section title="Compared to the previous month" class="mt-6">
+        <div class="grid grid-cols-2 gap-6 p-5 text-sm sm:grid-cols-4">
             <div>
                 <p class="text-slate-500">Income</p>
-                <p class="font-medium {{ ($this->comparison['income_change_percent'] ?? 0) >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                <p class="mt-1 flex items-center gap-1 font-medium {{ ($this->comparison['income_change_percent'] ?? 0) >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                    @if ($this->comparison['income_change_percent'] !== null)
+                        <x-icon :name="$this->comparison['income_change_percent'] >= 0 ? 'trend-up' : 'trend-down'" class="h-3.5 w-3.5" />
+                    @endif
                     {{ $this->comparison['income_change_percent'] === null ? '—' : ($this->comparison['income_change_percent'] >= 0 ? '+' : '').$this->comparison['income_change_percent'].'%' }}
                 </p>
             </div>
             <div>
                 <p class="text-slate-500">Expenses</p>
-                <p class="font-medium {{ ($this->comparison['expense_change_percent'] ?? 0) <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                <p class="mt-1 flex items-center gap-1 font-medium {{ ($this->comparison['expense_change_percent'] ?? 0) <= 0 ? 'text-green-600' : 'text-red-600' }}">
+                    @if ($this->comparison['expense_change_percent'] !== null)
+                        <x-icon :name="$this->comparison['expense_change_percent'] >= 0 ? 'trend-up' : 'trend-down'" class="h-3.5 w-3.5" />
+                    @endif
                     {{ $this->comparison['expense_change_percent'] === null ? '—' : ($this->comparison['expense_change_percent'] >= 0 ? '+' : '').$this->comparison['expense_change_percent'].'%' }}
                 </p>
             </div>
         </div>
-    </div>
+    </x-ui.section>
 
     <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div class="rounded-xl border border-slate-200 bg-white">
-            <h2 class="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700">Spending by category</h2>
-            <div class="divide-y divide-slate-100">
-                @forelse ($this->categorySpending as $category)
-                    <div class="flex items-center justify-between px-4 py-3 text-sm">
-                        <span class="text-slate-700">{{ $category['name'] }}</span>
-                        <span class="font-medium text-slate-900">{{ Money::formatMinor($category['amount_minor']) }}</span>
-                    </div>
-                @empty
-                    <p class="px-4 py-6 text-center text-sm text-slate-500">No spending this month.</p>
-                @endforelse
-            </div>
-        </div>
-
-        <div class="rounded-xl border border-slate-200 bg-white">
-            <h2 class="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700">Largest transactions</h2>
-            <div class="divide-y divide-slate-100">
-                @forelse ($this->largestTransactions as $transaction)
-                    <div class="flex items-center justify-between px-4 py-3 text-sm">
-                        <div>
-                            <p class="text-slate-700">{{ $transaction['description'] ?: 'Expense' }}</p>
-                            <p class="text-xs text-slate-400">{{ $transaction['occurred_at']->format('M j, Y') }}</p>
+        <x-ui.section title="Spending by category">
+            @if ($this->categorySpending->isEmpty())
+                <x-ui.empty-state icon="tag" title="No spending this month" />
+            @else
+                <div class="divide-y divide-slate-100">
+                    @foreach ($this->categorySpending as $category)
+                        <div class="flex items-center justify-between px-5 py-3 text-sm">
+                            <span class="text-slate-700">{{ $category['name'] }}</span>
+                            <span class="font-medium text-slate-900">{{ Money::formatMinor($category['amount_minor']) }}</span>
                         </div>
-                        <span class="font-medium text-slate-900">{{ Money::formatMinor($transaction['amount_minor']) }}</span>
-                    </div>
-                @empty
-                    <p class="px-4 py-6 text-center text-sm text-slate-500">No transactions this month.</p>
-                @endforelse
-            </div>
-        </div>
+                    @endforeach
+                </div>
+            @endif
+        </x-ui.section>
+
+        <x-ui.section title="Largest transactions">
+            @if ($this->largestTransactions->isEmpty())
+                <x-ui.empty-state icon="list" title="No transactions this month" />
+            @else
+                <div class="divide-y divide-slate-100">
+                    @foreach ($this->largestTransactions as $transaction)
+                        <div class="flex items-center justify-between px-5 py-3 text-sm">
+                            <div>
+                                <p class="text-slate-700">{{ $transaction['description'] ?: 'Expense' }}</p>
+                                <p class="text-xs text-slate-400">{{ $transaction['occurred_at']->format('M j, Y') }}</p>
+                            </div>
+                            <span class="font-medium text-slate-900">{{ Money::formatMinor($transaction['amount_minor']) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </x-ui.section>
     </div>
 
-    <div class="mt-6 rounded-xl border border-slate-200 bg-white">
-        <h2 class="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700">Account balances</h2>
+    <x-ui.section title="Account balances" class="mt-6">
         <div class="divide-y divide-slate-100">
             @foreach ($this->accountBalances as $account)
-                <div class="flex items-center justify-between px-4 py-3 text-sm">
+                <div class="flex items-center justify-between px-5 py-3 text-sm">
                     <span class="text-slate-700">{{ $account['name'] }}</span>
                     <span class="font-medium text-slate-900">{{ Money::formatMinor($account['balance_minor']) }}</span>
                 </div>
             @endforeach
         </div>
-    </div>
+    </x-ui.section>
 </div>

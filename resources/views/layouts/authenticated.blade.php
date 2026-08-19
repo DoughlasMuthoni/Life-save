@@ -16,39 +16,103 @@
     @livewireStyles
 </head>
 <body class="h-full font-sans antialiased text-slate-900">
-    <div class="min-h-screen bg-slate-50">
-        <nav class="border-b border-slate-200 bg-white">
-            <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-                <div class="flex items-center gap-6">
-                    <a href="{{ route('dashboard') }}" class="flex items-center gap-2 font-semibold text-slate-900">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-xs text-white">LO</span>
-                        {{ config('app.name') }}
-                    </a>
-                    <div class="hidden items-center gap-4 text-sm font-medium text-slate-600 sm:flex">
-                        <a href="{{ route('dashboard') }}" class="hover:text-slate-900 {{ request()->routeIs('dashboard') ? 'text-slate-900' : '' }}">Dashboard</a>
-                        <a href="{{ route('finance.messages') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.messages') ? 'text-slate-900' : '' }}">Messages</a>
-                        <a href="{{ route('savings-goals') }}" class="hover:text-slate-900 {{ request()->routeIs('savings-goals') ? 'text-slate-900' : '' }}">Savings Goals</a>
-                        <a href="{{ route('wishlist') }}" class="hover:text-slate-900 {{ request()->routeIs('wishlist') ? 'text-slate-900' : '' }}">Wishlist</a>
-                        <a href="{{ route('shopping') }}" class="hover:text-slate-900 {{ request()->routeIs('shopping') ? 'text-slate-900' : '' }}">Shopping</a>
-                        <a href="{{ route('tasks') }}" class="hover:text-slate-900 {{ request()->routeIs('tasks') ? 'text-slate-900' : '' }}">Tasks</a>
-                        <a href="{{ route('reports.monthly') }}" class="hover:text-slate-900 {{ request()->routeIs('reports.*') ? 'text-slate-900' : '' }}">Reports</a>
-                        <a href="{{ route('ai-assistant') }}" class="hover:text-slate-900 {{ request()->routeIs('ai-assistant') ? 'text-slate-900' : '' }}">AI Assistant</a>
-                        <a href="{{ route('finance.accounts') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.accounts') ? 'text-slate-900' : '' }}">Accounts</a>
-                        <a href="{{ route('finance.categories') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.categories') ? 'text-slate-900' : '' }}">Categories</a>
-                        <a href="{{ route('finance.transactions') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.transactions') ? 'text-slate-900' : '' }}">Transactions</a>
-                        <a href="{{ route('finance.reconciliation') }}" class="hover:text-slate-900 {{ request()->routeIs('finance.reconciliation') ? 'text-slate-900' : '' }}">Reconciliation</a>
-                    </div>
-                </div>
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit" class="text-sm font-medium text-slate-500 hover:text-slate-900">Sign out</button>
-                </form>
-            </div>
-        </nav>
+    @php
+        $navGroups = [
+            null => [
+                ['dashboard', 'home', 'Dashboard'],
+            ],
+            'Finance' => [
+                ['finance.messages', 'chat', 'Messages'],
+                ['finance.accounts', 'wallet', 'Accounts'],
+                ['finance.categories', 'tag', 'Categories'],
+                ['finance.transactions', 'list', 'Transactions'],
+                ['finance.reconciliation', 'scale', 'Reconciliation'],
+            ],
+            'Planning' => [
+                ['savings-goals', 'flag', 'Savings Goals'],
+                ['wishlist', 'heart', 'Wishlist'],
+                ['shopping', 'bag', 'Shopping'],
+                ['tasks', 'check-circle', 'Tasks'],
+            ],
+            'Insights' => [
+                ['reports.monthly', 'chart', 'Reports'],
+                ['ai-assistant', 'sparkles', 'AI Assistant'],
+            ],
+        ];
+    @endphp
 
-        <main class="mx-auto max-w-5xl px-4 py-8">
-            {{ $slot }}
-        </main>
+    <div x-data="{ sidebarOpen: false }" class="min-h-screen">
+        <div
+            x-show="sidebarOpen"
+            x-transition.opacity
+            @click="sidebarOpen = false"
+            class="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
+            style="display: none;"
+        ></div>
+
+        <aside
+            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+            class="fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:z-auto"
+        >
+            <div class="flex h-16 shrink-0 items-center gap-2.5 border-b border-slate-200 px-5">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-semibold text-white">LO</span>
+                <span class="truncate font-semibold text-slate-900">{{ config('app.name') }}</span>
+            </div>
+
+            <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+                @foreach ($navGroups as $group => $items)
+                    @if ($group)
+                        <p class="mt-5 mb-1 px-3 text-xs font-semibold tracking-wider text-slate-400 uppercase first:mt-0">{{ $group }}</p>
+                    @endif
+                    @foreach ($items as [$routeName, $icon, $label])
+                        @php
+                            $active = str_ends_with($routeName, '.monthly')
+                                ? request()->routeIs('reports.*')
+                                : request()->routeIs($routeName);
+                        @endphp
+                        <a
+                            href="{{ route($routeName) }}"
+                            class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium {{ $active ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }}"
+                        >
+                            <x-icon :name="$icon" class="h-5 w-5 shrink-0 {{ $active ? 'text-blue-600' : 'text-slate-400' }}" />
+                            {{ $label }}
+                        </a>
+                    @endforeach
+                @endforeach
+            </nav>
+
+            <div class="shrink-0 border-t border-slate-200 p-3">
+                <div class="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600">
+                        {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium text-slate-900">{{ auth()->user()->name }}</p>
+                        <p class="truncate text-xs text-slate-500">{{ auth()->user()->email }}</p>
+                    </div>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" title="Sign out" class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-600">
+                            <x-icon name="logout" class="h-4.5 w-4.5" />
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <div class="lg:pl-64">
+            <header class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur lg:hidden">
+                <button @click="sidebarOpen = true" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+                    <x-icon name="menu" class="h-5 w-5" />
+                </button>
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-semibold text-white">LO</span>
+                <span class="font-semibold text-slate-900">{{ config('app.name') }}</span>
+            </header>
+
+            <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+                {{ $slot }}
+            </main>
+        </div>
     </div>
 
     @livewireScripts

@@ -134,22 +134,20 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-semibold text-slate-900">Shopping</h1>
-            <p class="mt-1 text-sm text-slate-500">What you bought &mdash; separate from how it was paid.</p>
-        </div>
-        <button wire:click="$set('showForm', true)" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            + Log a purchase
-        </button>
-    </div>
+    <x-ui.page-header title="Shopping" subtitle="What you bought — separate from how it was paid.">
+        <x-slot:actions>
+            <x-ui.button wire:click="$set('showForm', true)" variant="primary">
+                <x-icon name="plus" class="h-4 w-4" /> Log a purchase
+            </x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if ($showForm)
-        <form wire:submit="create" class="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+        <form wire:submit="create" class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Merchant <span class="text-slate-400">(optional)</span></label>
-                    <input wire:model="merchantName" list="merchant-list" type="text" placeholder="e.g. Quickmart Juja" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="merchantName" list="merchant-list" type="text" placeholder="e.g. Quickmart Juja" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                     <datalist id="merchant-list">
                         @foreach ($this->merchants as $merchant)
                             <option value="{{ $merchant->name }}"></option>
@@ -157,17 +155,20 @@ new #[Layout('layouts.authenticated')] class extends Component
                     </datalist>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Total (KES)</label>
-                    <input wire:model="totalAmount" type="text" inputmode="decimal" placeholder="4350.00" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-slate-700">Total</label>
+                    <div class="relative mt-1">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-slate-400">KSh</span>
+                        <input wire:model="totalAmount" type="text" inputmode="decimal" placeholder="4,350.00" class="block w-full rounded-lg border-slate-300 pl-11 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
                     @error('totalAmount') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Date</label>
-                    <input wire:model="purchasedAt" type="date" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="purchasedAt" type="date" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Paid via <span class="text-slate-400">(optional)</span></label>
-                    <select wire:model="journalId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <select wire:model="journalId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         <option value="">Not linked</option>
                         @foreach ($this->unlinkedJournals as $journal)
                             <option value="{{ $journal->id }}">
@@ -179,37 +180,44 @@ new #[Layout('layouts.authenticated')] class extends Component
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-slate-700">Notes <span class="text-slate-400">(optional)</span></label>
-                    <input wire:model="notes" type="text" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="notes" type="text" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 </div>
             </div>
             <div class="flex gap-3">
-                <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Save</button>
-                <button type="button" wire:click="$set('showForm', false)" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                <x-ui.button type="submit" variant="primary">Save</x-ui.button>
+                <x-ui.button type="button" wire:click="$set('showForm', false)" variant="secondary">Cancel</x-ui.button>
             </div>
         </form>
     @endif
 
     <div class="mt-6 space-y-4">
         @forelse ($this->purchases as $purchase)
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
                 <div class="flex items-start justify-between gap-4">
-                    <div>
-                        <p class="font-medium text-slate-900">{{ $purchase->merchant->name ?? 'Unspecified merchant' }}</p>
-                        <p class="text-xs text-slate-400">
-                            {{ $purchase->purchased_at->format('M j, Y') }}
-                            @if ($purchase->journal)
-                                &middot; paid via {{ ucfirst($purchase->journal->journal_type->value) }}
-                            @else
-                                &middot; not linked to a transaction
+                    <div class="flex items-start gap-3">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-500">
+                            <x-icon name="bag" class="h-5 w-5" />
+                        </span>
+                        <div>
+                            <p class="font-medium text-slate-900">{{ $purchase->merchant->name ?? 'Unspecified merchant' }}</p>
+                            <p class="text-xs text-slate-400">
+                                {{ $purchase->purchased_at->format('M j, Y') }}
+                                @if ($purchase->journal)
+                                    &middot; paid via {{ ucfirst($purchase->journal->journal_type->value) }}
+                                @else
+                                    &middot; not linked to a transaction
+                                @endif
+                            </p>
+                            @if ($purchase->notes)
+                                <p class="mt-1 text-sm text-slate-500">{{ $purchase->notes }}</p>
                             @endif
-                        </p>
-                        @if ($purchase->notes)
-                            <p class="mt-1 text-sm text-slate-500">{{ $purchase->notes }}</p>
-                        @endif
+                        </div>
                     </div>
-                    <div class="text-right">
+                    <div class="shrink-0 text-right">
                         <p class="font-semibold text-slate-900">{{ Money::formatMinor($purchase->total_amount_minor) }}</p>
-                        <button wire:click="startAddingItem({{ $purchase->id }})" class="mt-1 text-xs font-medium text-blue-600 hover:text-blue-700">+ Add item</button>
+                        <button wire:click="startAddingItem({{ $purchase->id }})" class="mt-1 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                            <x-icon name="plus" class="h-3 w-3" /> Add item
+                        </button>
                     </div>
                 </div>
 
@@ -222,7 +230,8 @@ new #[Layout('layouts.authenticated')] class extends Component
                             </div>
                         @endforeach
                         @if (! $purchase->itemsReconcileWithTotal())
-                            <p class="pt-1 text-xs text-slate-400">
+                            <p class="flex items-center gap-1 pt-1 text-xs text-slate-400">
+                                <x-icon name="info" class="h-3 w-3" />
                                 Items total {{ Money::formatMinor($purchase->itemsTotalMinor()) }}, purchase total {{ Money::formatMinor($purchase->total_amount_minor) }}.
                             </p>
                         @endif
@@ -234,31 +243,32 @@ new #[Layout('layouts.authenticated')] class extends Component
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div class="sm:col-span-1">
                                 <label class="block text-xs font-medium text-slate-500">Item</label>
-                                <input wire:model="itemName" type="text" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm">
+                                <input wire:model="itemName" type="text" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 @error('itemName') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-500">Quantity</label>
-                                <input wire:model="itemQuantity" type="number" min="1" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm">
+                                <input wire:model="itemQuantity" type="number" min="1" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                 @error('itemQuantity') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-500">Unit price (KES)</label>
-                                <input wire:model="itemUnitPrice" type="text" inputmode="decimal" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm">
+                                <label class="block text-xs font-medium text-slate-500">Unit price</label>
+                                <div class="relative mt-1">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-medium text-slate-400">KSh</span>
+                                    <input wire:model="itemUnitPrice" type="text" inputmode="decimal" class="block w-full rounded-lg border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
                                 @error('itemUnitPrice') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
                         </div>
                         <div class="mt-3 flex gap-3">
-                            <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Add</button>
-                            <button type="button" wire:click="cancelAddingItem" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Done</button>
+                            <x-ui.button type="submit" variant="primary" size="sm">Add</x-ui.button>
+                            <x-ui.button type="button" wire:click="cancelAddingItem" variant="secondary" size="sm">Done</x-ui.button>
                         </div>
                     </form>
                 @endif
             </div>
         @empty
-            <p class="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center text-sm text-slate-500">
-                No purchases logged yet.
-            </p>
+            <x-ui.empty-state icon="bag" title="No purchases logged yet" />
         @endforelse
     </div>
 </div>

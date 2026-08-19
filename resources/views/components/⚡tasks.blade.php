@@ -83,27 +83,25 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-semibold text-slate-900">Tasks</h1>
-            <p class="mt-1 text-sm text-slate-500">{{ $this->pendingTasks->count() }} open</p>
-        </div>
-        <button wire:click="$set('showForm', true)" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            + New task
-        </button>
-    </div>
+    <x-ui.page-header title="Tasks" :subtitle="$this->pendingTasks->count().' open'">
+        <x-slot:actions>
+            <x-ui.button wire:click="$set('showForm', true)" variant="primary">
+                <x-icon name="plus" class="h-4 w-4" /> New task
+            </x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if ($showForm)
-        <form wire:submit="create" class="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+        <form wire:submit="create" class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-slate-700">Title</label>
-                    <input wire:model="title" type="text" placeholder="e.g. Pay KPLC token" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="title" type="text" placeholder="e.g. Pay KPLC token" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                     @error('title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Priority</label>
-                    <select wire:model="priority" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <select wire:model="priority" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         <option value="low">Low</option>
                         <option value="medium">Medium</option>
                         <option value="high">High</option>
@@ -111,60 +109,67 @@ new #[Layout('layouts.authenticated')] class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Due date <span class="text-slate-400">(optional)</span></label>
-                    <input wire:model="dueDate" type="date" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="dueDate" type="date" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 </div>
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-slate-700">Notes <span class="text-slate-400">(optional)</span></label>
-                    <textarea wire:model="description" rows="2" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm"></textarea>
+                    <textarea wire:model="description" rows="2" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
                 </div>
             </div>
             <div class="flex gap-3">
-                <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Save</button>
-                <button type="button" wire:click="$set('showForm', false)" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                <x-ui.button type="submit" variant="primary">Save</x-ui.button>
+                <x-ui.button type="button" wire:click="$set('showForm', false)" variant="secondary">Cancel</x-ui.button>
             </div>
         </form>
     @endif
 
-    <div class="mt-6 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
-        @forelse ($this->pendingTasks as $task)
-            <div class="flex items-start gap-3 px-4 py-3">
-                <button wire:click="complete({{ $task->id }})" class="mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 border-slate-300 hover:border-blue-600" aria-label="Mark complete"></button>
-                <div class="flex-1">
-                    <div class="flex items-center gap-2">
-                        <p class="text-sm text-slate-900">{{ $task->title }}</p>
-                        <span @class([
-                            'rounded-full px-2 py-0.5 text-xs font-medium',
-                            'bg-red-50 text-red-700' => $task->priority->value === 'high',
-                            'bg-amber-50 text-amber-700' => $task->priority->value === 'medium',
-                            'bg-slate-100 text-slate-500' => $task->priority->value === 'low',
-                        ])>{{ ucfirst($task->priority->value) }}</span>
-                        @if ($task->isOverdue())
-                            <span class="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Overdue</span>
+    @if ($this->pendingTasks->isEmpty())
+        <x-ui.empty-state icon="check-circle" title="Nothing on your list" description="Add a task to get started." class="mt-6" />
+    @else
+        <div class="mt-6 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+            @foreach ($this->pendingTasks as $task)
+                <div class="flex items-start gap-3 px-5 py-3.5">
+                    <button
+                        wire:click="complete({{ $task->id }})"
+                        aria-label="Mark complete"
+                        class="group mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 text-transparent hover:border-blue-600 hover:bg-blue-50 hover:text-blue-600"
+                    >
+                        <x-icon name="check" class="h-3 w-3" />
+                    </button>
+                    <div class="flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <p class="text-sm text-slate-900">{{ $task->title }}</p>
+                            <x-ui.badge :color="['high' => 'red', 'medium' => 'amber', 'low' => 'slate'][$task->priority->value]">{{ ucfirst($task->priority->value) }}</x-ui.badge>
+                            @if ($task->isOverdue())
+                                <x-ui.badge color="red">Overdue</x-ui.badge>
+                            @endif
+                        </div>
+                        @if ($task->description)
+                            <p class="mt-0.5 text-xs text-slate-500">{{ $task->description }}</p>
+                        @endif
+                        @if ($task->due_date)
+                            <p class="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
+                                <x-icon name="calendar" class="h-3 w-3" /> Due {{ $task->due_date->format('M j, Y') }}
+                            </p>
                         @endif
                     </div>
-                    @if ($task->description)
-                        <p class="mt-0.5 text-xs text-slate-500">{{ $task->description }}</p>
-                    @endif
-                    @if ($task->due_date)
-                        <p class="mt-0.5 text-xs text-slate-400">Due {{ $task->due_date->format('M j, Y') }}</p>
-                    @endif
+                    <button wire:click="cancel({{ $task->id }})" wire:confirm="Cancel this task?" class="shrink-0 text-xs text-slate-400 hover:text-red-600">Cancel</button>
                 </div>
-                <button wire:click="cancel({{ $task->id }})" wire:confirm="Cancel this task?" class="shrink-0 text-xs text-slate-400 hover:text-red-600">Cancel</button>
-            </div>
-        @empty
-            <p class="px-4 py-8 text-center text-sm text-slate-500">Nothing on your list. Add a task to get started.</p>
-        @endforelse
-    </div>
+            @endforeach
+        </div>
+    @endif
 
     @if ($this->completedTasks->isNotEmpty())
-        <div class="mt-8">
-            <h2 class="text-sm font-semibold text-slate-700">Recently closed</h2>
-            <div class="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+        <x-ui.section title="Recently closed" class="mt-8">
+            <div class="divide-y divide-slate-100">
                 @foreach ($this->completedTasks as $task)
-                    <div class="flex items-center justify-between px-4 py-3">
-                        <div>
-                            <p class="text-sm text-slate-500 line-through">{{ $task->title }}</p>
-                            <span class="text-xs text-slate-400">{{ ucfirst($task->status->value) }}</span>
+                    <div class="flex items-center justify-between px-5 py-3">
+                        <div class="flex items-center gap-2">
+                            <x-icon name="check-circle" class="h-4 w-4 text-slate-300" />
+                            <div>
+                                <p class="text-sm text-slate-500 line-through">{{ $task->title }}</p>
+                                <span class="text-xs text-slate-400">{{ ucfirst($task->status->value) }}</span>
+                            </div>
                         </div>
                         @if ($task->status->value === 'completed')
                             <button wire:click="reopen({{ $task->id }})" class="text-xs font-medium text-blue-600 hover:text-blue-700">Reopen</button>
@@ -172,6 +177,6 @@ new #[Layout('layouts.authenticated')] class extends Component
                     </div>
                 @endforeach
             </div>
-        </div>
+        </x-ui.section>
     @endif
 </div>

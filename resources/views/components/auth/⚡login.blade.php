@@ -55,13 +55,13 @@ new #[Layout('layouts.app')] class extends Component
 };
 ?>
 
-<div class="flex min-h-screen items-center justify-center px-4">
+<div class="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 px-4">
     <div class="w-full max-w-sm">
         <div class="mb-8 text-center">
-            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white font-semibold text-lg">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-lg font-semibold text-white shadow-lg shadow-blue-600/25">
                 LO
             </div>
-            <h1 class="text-xl font-semibold text-slate-900">{{ config('app.name') }}</h1>
+            <h1 class="text-2xl font-semibold tracking-tight text-slate-900">{{ config('app.name') }}</h1>
             <p class="mt-1 text-sm text-slate-500">Sign in to your account</p>
         </div>
 
@@ -69,15 +69,20 @@ new #[Layout('layouts.app')] class extends Component
             <form wire:submit="login" class="space-y-4">
                 <div>
                     <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
-                    <input
-                        wire:model="email"
-                        id="email"
-                        type="email"
-                        autocomplete="username"
-                        required
-                        autofocus
-                        class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    >
+                    <div class="relative mt-1">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <x-icon name="user" class="h-4.5 w-4.5" />
+                        </span>
+                        <input
+                            wire:model="email"
+                            id="email"
+                            type="email"
+                            autocomplete="username"
+                            required
+                            autofocus
+                            class="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        >
+                    </div>
                     @error('email')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -85,14 +90,19 @@ new #[Layout('layouts.app')] class extends Component
 
                 <div>
                     <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
-                    <input
-                        wire:model="password"
-                        id="password"
-                        type="password"
-                        autocomplete="current-password"
-                        required
-                        class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    >
+                    <div class="relative mt-1">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                            <x-icon name="lock" class="h-4.5 w-4.5" />
+                        </span>
+                        <input
+                            wire:model="password"
+                            id="password"
+                            type="password"
+                            autocomplete="current-password"
+                            required
+                            class="block w-full rounded-lg border-slate-300 pl-10 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        >
+                    </div>
                     @error('password')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -103,19 +113,16 @@ new #[Layout('layouts.app')] class extends Component
                     Remember me
                 </label>
 
-                <button
-                    type="submit"
-                    class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    wire:loading.attr="disabled"
-                >
+                <x-ui.button type="submit" variant="primary" class="w-full" wire:loading.attr="disabled">
                     <span wire:loading.remove>Sign in</span>
                     <span wire:loading>Signing in&hellip;</span>
-                </button>
+                </x-ui.button>
             </form>
         </div>
 
-        <p class="mt-6 text-center text-xs text-slate-400">
-            This is a private, single-owner system. There is no self-service registration.
+        <p class="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
+            <x-icon name="lock" class="h-3.5 w-3.5" />
+            Private, single-owner system &mdash; no self-service registration.
         </p>
     </div>
 </div>

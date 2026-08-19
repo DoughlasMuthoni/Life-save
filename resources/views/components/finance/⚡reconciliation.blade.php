@@ -60,21 +60,24 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <h1 class="text-xl font-semibold text-slate-900">Reconciliation</h1>
-    <p class="mt-1 text-sm text-slate-500">
-        When a confirmed SMS reports a balance that doesn't match what the ledger calculates, it shows up here.
-        This never changes an account's actual balance &mdash; it only flags the difference for you to look into.
-    </p>
+    <x-ui.page-header
+        title="Reconciliation"
+        subtitle="When a confirmed SMS reports a balance that doesn't match the ledger, it shows up here — this never changes an account's actual balance, it only flags the difference."
+    />
 
     @if (session('status'))
-        <div class="mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
+        <div class="mt-4 flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+            <x-icon name="check-circle" class="h-4 w-4" /> {{ session('status') }}
+        </div>
     @endif
 
     <div class="mt-6">
-        <h2 class="text-sm font-semibold text-amber-700">Needs attention ({{ $this->mismatched->count() }})</h2>
+        <h2 class="flex items-center gap-1.5 text-sm font-semibold text-amber-700">
+            <x-icon name="warning" class="h-4 w-4" /> Needs attention ({{ $this->mismatched->count() }})
+        </h2>
         <div class="mt-3 space-y-4">
             @forelse ($this->mismatched as $observation)
-                <div class="rounded-xl border border-amber-300 bg-amber-50/40 p-4">
+                <div class="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <p class="text-sm font-medium text-slate-900">{{ $observation->financialAccount->name }}</p>
@@ -85,45 +88,45 @@ new #[Layout('layouts.authenticated')] class extends Component
                                 <span class="text-slate-500">Ledger calculates</span>
                                 <span class="font-medium text-slate-900">{{ Money::formatMinor($observation->calculated_balance_minor) }}</span>
                                 <span class="text-slate-500">Difference</span>
-                                <span class="font-medium text-red-600">{{ Money::formatMinor($observation->difference_minor) }}</span>
+                                <span class="font-semibold text-red-600">{{ Money::formatMinor($observation->difference_minor) }}</span>
                             </div>
                         </div>
-                        <button wire:click="startResolving({{ $observation->id }})" class="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                        <x-ui.button wire:click="startResolving({{ $observation->id }})" variant="secondary" size="sm">
                             Mark resolved
-                        </button>
+                        </x-ui.button>
                     </div>
 
                     @if ($resolvingId === $observation->id)
                         <form wire:submit="confirmResolve" class="mt-3 rounded-lg bg-white p-4">
                             <label class="block text-sm font-medium text-slate-700">What did you find?</label>
-                            <input wire:model="resolutionNote" type="text" placeholder="e.g. Found a missed cash withdrawal, added it manually" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                            <input wire:model="resolutionNote" type="text" placeholder="e.g. Found a missed cash withdrawal, added it manually" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                             @error('resolutionNote') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             <div class="mt-3 flex gap-3">
-                                <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Save</button>
-                                <button type="button" wire:click="cancelResolving" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                                <x-ui.button type="submit" variant="primary" size="sm">Save</x-ui.button>
+                                <x-ui.button type="button" wire:click="cancelResolving" variant="secondary" size="sm">Cancel</x-ui.button>
                             </div>
                         </form>
                     @endif
                 </div>
             @empty
-                <p class="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center text-sm text-slate-500">
-                    Nothing to reconcile right now.
-                </p>
+                <x-ui.empty-state icon="check-circle" title="Nothing to reconcile right now" />
             @endforelse
         </div>
     </div>
 
     @if ($this->resolved->isNotEmpty())
-        <div class="mt-8">
-            <h2 class="text-sm font-semibold text-slate-700">Recently resolved</h2>
-            <div class="mt-3 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+        <x-ui.section title="Recently resolved" class="mt-8">
+            <div class="divide-y divide-slate-100">
                 @foreach ($this->resolved as $observation)
-                    <div class="px-6 py-3">
-                        <p class="text-sm text-slate-900">{{ $observation->financialAccount->name }} &mdash; {{ Money::formatMinor($observation->difference_minor) }} difference</p>
-                        <p class="text-xs text-slate-500">{{ $observation->resolution_note }}</p>
+                    <div class="flex items-start gap-3 px-5 py-3">
+                        <x-icon name="check-circle" class="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                        <div>
+                            <p class="text-sm text-slate-900">{{ $observation->financialAccount->name }} &mdash; {{ Money::formatMinor($observation->difference_minor) }} difference</p>
+                            <p class="text-xs text-slate-500">{{ $observation->resolution_note }}</p>
+                        </div>
                     </div>
                 @endforeach
             </div>
-        </div>
+        </x-ui.section>
     @endif
 </div>

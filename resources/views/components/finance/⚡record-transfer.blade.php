@@ -105,22 +105,28 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div class="mx-auto max-w-lg">
-    <h1 class="text-xl font-semibold text-slate-900">Record transfer</h1>
-    <p class="mt-1 text-sm text-slate-500">Moving money between your own accounts. Never counted as income or expense.</p>
+    <div class="flex items-center gap-3">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <x-icon name="arrow-path" class="h-5 w-5" />
+        </span>
+        <div>
+            <h1 class="text-xl font-semibold text-slate-900">Record transfer</h1>
+            <p class="text-sm text-slate-500">Between your own accounts. Never counted as income or expense.</p>
+        </div>
+    </div>
 
     @if ($this->accounts->count() < 2)
-        <div class="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600">
-            You need at least two financial accounts to record a transfer.
-            <div class="mt-3">
-                <a href="{{ route('finance.accounts') }}" class="font-medium text-blue-600 hover:text-blue-700">Add an account</a>
-            </div>
-        </div>
+        <x-ui.empty-state icon="wallet" title="A bit more setup needed" description="You need at least two financial accounts to record a transfer." class="mt-6">
+            <x-slot:actions>
+                <x-ui.button :href="route('finance.accounts')" variant="secondary" size="sm">Add an account</x-ui.button>
+            </x-slot:actions>
+        </x-ui.empty-state>
     @else
-        <form wire:submit="save" class="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+        <form wire:submit="save" class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                     <label class="block text-sm font-medium text-slate-700">From</label>
-                    <select wire:model="fromAccountId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <select wire:model="fromAccountId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         <option value="">Select&hellip;</option>
                         @foreach ($this->accounts as $account)
                             <option value="{{ $account->id }}">{{ $account->name }}</option>
@@ -130,7 +136,7 @@ new #[Layout('layouts.authenticated')] class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">To</label>
-                    <select wire:model="toAccountId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <select wire:model="toAccountId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         <option value="">Select&hellip;</option>
                         @foreach ($this->accounts as $account)
                             <option value="{{ $account->id }}">{{ $account->name }}</option>
@@ -140,8 +146,11 @@ new #[Layout('layouts.authenticated')] class extends Component
                 </div>
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700">Amount (KES)</label>
-                <input wire:model="amount" type="text" inputmode="decimal" placeholder="e.g. 20000.00" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                <label class="block text-sm font-medium text-slate-700">Amount</label>
+                <div class="relative mt-1">
+                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-slate-400">KSh</span>
+                    <input wire:model="amount" type="text" inputmode="decimal" placeholder="20,000.00" class="block w-full rounded-lg border-slate-300 pl-11 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
                 @error('amount') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 <p class="mt-1 text-xs text-slate-400">This is the amount that arrives in the destination account.</p>
             </div>
@@ -155,7 +164,7 @@ new #[Layout('layouts.authenticated')] class extends Component
                 <div class="grid grid-cols-1 gap-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
                     <div>
                         <label class="block text-sm font-medium text-slate-700">Fee category</label>
-                        <select wire:model="feeCategoryId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                        <select wire:model="feeCategoryId" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                             <option value="">Select&hellip;</option>
                             @foreach ($this->feeCategories as $category)
                                 <option value="{{ $category->id }}">{{ $category->name }}</option>
@@ -164,8 +173,11 @@ new #[Layout('layouts.authenticated')] class extends Component
                         @error('feeCategoryId') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700">Fee amount (KES)</label>
-                        <input wire:model="feeAmount" type="text" inputmode="decimal" placeholder="e.g. 15.00" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                        <label class="block text-sm font-medium text-slate-700">Fee amount</label>
+                        <div class="relative mt-1">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-slate-400">KSh</span>
+                            <input wire:model="feeAmount" type="text" inputmode="decimal" placeholder="15.00" class="block w-full rounded-lg border-slate-300 pl-11 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
                         @error('feeAmount') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                     </div>
                 </div>
@@ -173,19 +185,19 @@ new #[Layout('layouts.authenticated')] class extends Component
 
             <div>
                 <label class="block text-sm font-medium text-slate-700">Date &amp; time</label>
-                <input wire:model="occurredAt" type="datetime-local" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                <input wire:model="occurredAt" type="datetime-local" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 @error('occurredAt') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="block text-sm font-medium text-slate-700">Description <span class="text-slate-400">(optional)</span></label>
-                <input wire:model="description" type="text" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                <input wire:model="description" type="text" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 @error('description') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
             </div>
-            <div class="flex gap-3">
-                <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700" wire:loading.attr="disabled">
+            <div class="flex gap-3 pt-2">
+                <x-ui.button type="submit" variant="primary" wire:loading.attr="disabled">
                     Record transfer
-                </button>
-                <a href="{{ route('finance.transactions') }}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</a>
+                </x-ui.button>
+                <x-ui.button :href="route('finance.transactions')" variant="secondary">Cancel</x-ui.button>
             </div>
         </form>
     @endif

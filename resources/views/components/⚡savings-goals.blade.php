@@ -126,40 +126,46 @@ new #[Layout('layouts.authenticated')] class extends Component
 ?>
 
 <div>
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-xl font-semibold text-slate-900">Savings Goals</h1>
-            <p class="mt-1 text-sm text-slate-500">Virtual allocations of money you already have &mdash; never counted as extra.</p>
-        </div>
-        <button wire:click="$set('showForm', true)" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-            + New goal
-        </button>
-    </div>
+    <x-ui.page-header title="Savings Goals" subtitle="Virtual allocations of money you already have — never counted as extra.">
+        <x-slot:actions>
+            <x-ui.button wire:click="$set('showForm', true)" variant="primary">
+                <x-icon name="plus" class="h-4 w-4" /> New goal
+            </x-ui.button>
+        </x-slot:actions>
+    </x-ui.page-header>
 
     @if (session('status'))
-        <div class="mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">{{ session('status') }}</div>
+        <div class="mt-4 flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+            <x-icon name="check-circle" class="h-4 w-4" /> {{ session('status') }}
+        </div>
     @endif
 
     @if ($showForm)
-        <form wire:submit="create" class="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6">
+        <form wire:submit="create" class="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div class="sm:col-span-2">
                     <label class="block text-sm font-medium text-slate-700">Title</label>
-                    <input wire:model="title" type="text" placeholder="e.g. Emergency Fund" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="title" type="text" placeholder="e.g. Emergency Fund" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                     @error('title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Target amount (KES)</label>
-                    <input wire:model="targetAmount" type="text" inputmode="decimal" placeholder="100000.00" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <label class="block text-sm font-medium text-slate-700">Target amount</label>
+                    <div class="relative mt-1">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-slate-400">KSh</span>
+                        <input wire:model="targetAmount" type="text" inputmode="decimal" placeholder="100,000.00" class="block w-full rounded-lg border-slate-300 pl-11 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
                     @error('targetAmount') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Planned monthly contribution <span class="text-slate-400">(optional)</span></label>
-                    <input wire:model="monthlyContribution" type="text" inputmode="decimal" placeholder="4000.00" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <div class="relative mt-1">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-medium text-slate-400">KSh</span>
+                        <input wire:model="monthlyContribution" type="text" inputmode="decimal" placeholder="4,000.00" class="block w-full rounded-lg border-slate-300 pl-11 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Priority</label>
-                    <select wire:model="priority" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <select wire:model="priority" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                         <option value="low">Low</option>
                         <option value="medium">Medium</option>
                         <option value="high">High</option>
@@ -167,39 +173,48 @@ new #[Layout('layouts.authenticated')] class extends Component
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700">Target date <span class="text-slate-400">(optional)</span></label>
-                    <input wire:model="targetDate" type="date" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm sm:text-sm">
+                    <input wire:model="targetDate" type="date" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                 </div>
             </div>
             <div class="flex gap-3">
-                <button type="submit" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Save goal</button>
-                <button type="button" wire:click="$set('showForm', false)" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                <x-ui.button type="submit" variant="primary">Save goal</x-ui.button>
+                <x-ui.button type="button" wire:click="$set('showForm', false)" variant="secondary">Cancel</x-ui.button>
             </div>
         </form>
     @endif
 
     <div class="mt-6 space-y-4">
-        @forelse ($this->goals as $goal)
-            <div class="rounded-xl border border-slate-200 bg-white p-4">
+        @forelse ($this->goals as $i => $goal)
+            @php $iconColor = ['bg-blue-50 text-blue-600', 'bg-purple-50 text-purple-600', 'bg-amber-50 text-amber-600', 'bg-green-50 text-green-600'][$i % 4]; @endphp
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
                 <div class="flex items-start justify-between gap-4">
-                    <div class="flex-1">
-                        <p class="font-medium text-slate-900">{{ $goal->title }}</p>
-                        <div class="mt-2 flex items-center gap-3">
-                            <div class="h-2 flex-1 rounded-full bg-slate-100">
-                                <div class="h-2 rounded-full bg-blue-600" style="width: {{ $goal->progressPercent() }}%"></div>
+                    <div class="flex flex-1 items-start gap-3">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {{ $iconColor }}">
+                            <x-icon name="flag" class="h-5 w-5" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <p class="font-medium text-slate-900">{{ $goal->title }}</p>
+                                <x-ui.badge :color="['low' => 'slate', 'medium' => 'amber', 'high' => 'red'][$goal->priority->value]">{{ ucfirst($goal->priority->value) }}</x-ui.badge>
                             </div>
-                            <span class="shrink-0 text-sm font-medium text-slate-600">{{ $goal->progressPercent() }}%</span>
+                            <div class="mt-2 flex items-center gap-3">
+                                <div class="h-2 flex-1 rounded-full bg-slate-100">
+                                    <div class="h-2 rounded-full bg-blue-600" style="width: {{ $goal->progressPercent() }}%"></div>
+                                </div>
+                                <span class="shrink-0 text-sm font-medium text-slate-600">{{ $goal->progressPercent() }}%</span>
+                            </div>
+                            <p class="mt-2 text-sm text-slate-500">
+                                {{ Money::formatMinor($goal->allocatedAmountMinor()) }} of {{ Money::formatMinor($goal->target_value) }}
+                                &middot; {{ Money::formatMinor($goal->remainingAmountMinor()) }} remaining
+                                @if ($goal->monthsRemaining() !== null)
+                                    &middot; ~{{ $goal->monthsRemaining() }} {{ Str::plural('month', $goal->monthsRemaining()) }} at current plan
+                                @endif
+                            </p>
                         </div>
-                        <p class="mt-2 text-sm text-slate-500">
-                            {{ Money::formatMinor($goal->allocatedAmountMinor()) }} of {{ Money::formatMinor($goal->target_value) }}
-                            &middot; {{ Money::formatMinor($goal->remainingAmountMinor()) }} remaining
-                            @if ($goal->monthsRemaining() !== null)
-                                &middot; ~{{ $goal->monthsRemaining() }} {{ Str::plural('month', $goal->monthsRemaining()) }} at current plan
-                            @endif
-                        </p>
                     </div>
-                    <button wire:click="startAllocating({{ $goal->id }})" class="shrink-0 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                    <x-ui.button wire:click="startAllocating({{ $goal->id }})" variant="secondary" size="sm">
                         Allocate
-                    </button>
+                    </x-ui.button>
                 </div>
 
                 @if ($allocatingGoalId === $goal->id)
@@ -207,7 +222,7 @@ new #[Layout('layouts.authenticated')] class extends Component
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500">From account</label>
-                                <select wire:model="allocateAccountId" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm">
+                                <select wire:model="allocateAccountId" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                     <option value="">Select&hellip;</option>
                                     @foreach ($this->accounts as $account)
                                         <option value="{{ $account->id }}">{{ $account->name }}</option>
@@ -216,32 +231,33 @@ new #[Layout('layouts.authenticated')] class extends Component
                                 @error('allocateAccountId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-500">Amount (KES)</label>
-                                <input wire:model="allocateAmount" type="text" inputmode="decimal" class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm">
+                                <label class="block text-xs font-medium text-slate-500">Amount</label>
+                                <div class="relative mt-1">
+                                    <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-medium text-slate-400">KSh</span>
+                                    <input wire:model="allocateAmount" type="text" inputmode="decimal" class="block w-full rounded-lg border-slate-300 pl-10 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                </div>
                                 @error('allocateAmount') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </div>
                         </div>
                         <div class="mt-3 flex gap-3">
-                            <button type="submit" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">Confirm</button>
-                            <button type="button" wire:click="cancelAllocating" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+                            <x-ui.button type="submit" variant="primary" size="sm">Confirm</x-ui.button>
+                            <x-ui.button type="button" wire:click="cancelAllocating" variant="secondary" size="sm">Cancel</x-ui.button>
                         </div>
                     </form>
                 @endif
             </div>
         @empty
-            <p class="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-8 text-center text-sm text-slate-500">
-                No savings goals yet.
-            </p>
+            <x-ui.empty-state icon="flag" title="No savings goals yet" description="Create a goal to start earmarking money toward it." />
         @endforelse
     </div>
 
     <div class="mt-8">
         <h2 class="text-sm font-semibold text-slate-700">Allocation breakdown by account</h2>
         <p class="mt-1 text-xs text-slate-400">Real balances vs. virtual allocations. A negative unallocated figure means an account is over-committed.</p>
-        <div class="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div class="mt-3 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
             <table class="min-w-full divide-y divide-slate-200 text-sm">
                 <thead>
-                    <tr class="text-left text-xs font-medium uppercase text-slate-500">
+                    <tr class="text-left text-xs font-medium tracking-wider text-slate-500 uppercase">
                         <th class="px-4 py-3">Account</th>
                         <th class="px-4 py-3">Available (real)</th>
                         <th class="px-4 py-3">Allocated (virtual)</th>
@@ -255,10 +271,12 @@ new #[Layout('layouts.authenticated')] class extends Component
                             <td class="px-4 py-3">{{ Money::formatMinor($row['available']) }}</td>
                             <td class="px-4 py-3">{{ Money::formatMinor($row['allocated']) }}</td>
                             <td class="px-4 py-3 {{ $row['unallocated'] < 0 ? 'font-medium text-red-600' : 'text-slate-700' }}">
-                                {{ Money::formatMinor($row['unallocated']) }}
-                                @if ($row['unallocated'] < 0)
-                                    <span class="ml-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">Over-allocated</span>
-                                @endif
+                                <span class="inline-flex items-center gap-2">
+                                    {{ Money::formatMinor($row['unallocated']) }}
+                                    @if ($row['unallocated'] < 0)
+                                        <x-ui.badge color="red">Over-allocated</x-ui.badge>
+                                    @endif
+                                </span>
                             </td>
                         </tr>
                     @endforeach
