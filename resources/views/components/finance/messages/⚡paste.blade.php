@@ -164,14 +164,16 @@ new #[Layout('layouts.authenticated')] class extends Component
         </div>
     @endif
 
-    <form wire:submit="parseMessages" class="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+    <form wire:submit="parseMessages" class="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+        <label for="pasteText" class="block text-sm font-medium text-slate-700">Raw message text</label>
         <textarea
             wire:model="pasteText"
-            rows="6"
+            id="pasteText"
+            rows="7"
             placeholder="QGH7XI9K2L Confirmed. Ksh1,500.00 sent to JOHN MWANGI 0712345678 on 31/5/25 at 1:41 PM. New M-PESA balance is Ksh3,450.00."
-            class="block w-full rounded-lg border-slate-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            class="mt-2 block w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-sm leading-relaxed text-slate-800 placeholder:text-slate-400 shadow-sm transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
         ></textarea>
-        @error('pasteText') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        @error('pasteText') <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p> @enderror
         <div class="mt-3 flex items-center justify-between">
             <p class="flex items-center gap-1.5 text-xs text-slate-400">
                 <x-icon name="info" class="h-3.5 w-3.5" /> Only M-Pesa messages are parsed automatically in this version.
