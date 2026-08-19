@@ -16,6 +16,7 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/savings-goals', 'savings-goals')->name('savings-goals');
     Route::livewire('/wishlist', 'wishlist')->name('wishlist');
     Route::livewire('/ai-assistant', 'ai-assistant')->name('ai-assistant');
+    Route::livewire('/shopping', 'shopping')->name('shopping');
     Route::post('/logout', LogoutController::class)->name('logout');
 
     Route::prefix('reports')->name('reports.')->group(function () {
