@@ -23,7 +23,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'financial_message_id', 'user_id', 'transaction_type', 'financial_account_id',
     'destination_financial_account_id', 'transaction_category_id', 'fee_category_id',
     'amount_minor', 'fee_minor', 'currency', 'counterparty', 'transaction_time',
-    'reported_balance_minor', 'description', 'status', 'duplicate_of_message_id', 'journal_id',
+    'reported_balance_minor', 'field_verification', 'description', 'status',
+    'duplicate_of_message_id', 'journal_id',
 ])]
 class ProposedTransaction extends Model
 {
@@ -55,6 +56,7 @@ class ProposedTransaction extends Model
             'amount_minor' => 'integer',
             'fee_minor' => 'integer',
             'reported_balance_minor' => 'integer',
+            'field_verification' => 'array',
             'transaction_time' => 'datetime',
         ];
     }

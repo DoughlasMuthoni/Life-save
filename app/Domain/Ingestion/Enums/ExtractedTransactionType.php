@@ -13,6 +13,8 @@ enum ExtractedTransactionType: string
     case BUY_GOODS = 'buy_goods';
     case PAYBILL = 'paybill';
     case WITHDRAWAL = 'withdrawal';
+    case BANK_DEBIT = 'bank_debit';
+    case BANK_CREDIT = 'bank_credit';
 
     /**
      * The ledger "shape" this transaction type must be posted as. A cash
@@ -24,8 +26,8 @@ enum ExtractedTransactionType: string
     public function shape(): TransactionShape
     {
         return match ($this) {
-            self::RECEIVE_MONEY => TransactionShape::INCOME,
-            self::SEND_MONEY, self::BUY_GOODS, self::PAYBILL => TransactionShape::EXPENSE,
+            self::RECEIVE_MONEY, self::BANK_CREDIT => TransactionShape::INCOME,
+            self::SEND_MONEY, self::BUY_GOODS, self::PAYBILL, self::BANK_DEBIT => TransactionShape::EXPENSE,
             self::WITHDRAWAL => TransactionShape::TRANSFER,
         };
     }

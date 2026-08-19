@@ -16,4 +16,6 @@ enum AuditAction: string
     case SMS_PARSED = 'sms.parsed';
     case SMS_DUPLICATE_DETECTED = 'sms.duplicate_detected';
     case PROPOSED_TRANSACTION_REJECTED = 'proposed_transaction.rejected';
+    case AI_PARSE_ACCEPTED = 'ai.parse_accepted';
+    case AI_PARSE_REJECTED = 'ai.parse_rejected';
 }

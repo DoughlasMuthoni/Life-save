@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    // Which AIProviderInterface binding to use (see AppServiceProvider).
+    // Swapping providers later (e.g. adding 'openai') never touches domain
+    // code — only this config value and the binding itself.
+    'ai_provider' => env('AI_PROVIDER', 'claude'),
+
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-5'),
+    ],
+
 ];

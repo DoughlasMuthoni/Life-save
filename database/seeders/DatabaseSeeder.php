@@ -14,12 +14,14 @@ class DatabaseSeeder extends Seeder
      *
      * This is a single-owner system: the one user account is created via
      * `php artisan app:create-owner-account`, not seeded with a known
-     * placeholder password. Intentionally left empty for now — future
-     * seeders should only ever seed non-sensitive reference data (e.g.
-     * default transaction categories), never user credentials.
+     * placeholder password. Seeders here are reference data only (default
+     * categories) — never user credentials, and never fabricated financial
+     * history (accounts, transactions, balances). A believable-looking fake
+     * transaction is exactly the kind of thing that gets mistaken for real
+     * data in a finance app.
      */
     public function run(): void
     {
-        //
+        $this->call(TransactionCategorySeeder::class);
     }
 }
