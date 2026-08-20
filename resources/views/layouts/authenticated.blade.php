@@ -39,6 +39,11 @@
                 ['habits', 'fire', 'Habits'],
                 ['calendar', 'calendar', 'Calendar'],
             ],
+            'Health' => [
+                ['health.weight', 'scale', 'Weight'],
+                ['health.workouts', 'fire', 'Workouts'],
+                ['health.meals', 'bag', 'Meals'],
+            ],
             'Insights' => [
                 ['reports.monthly', 'chart', 'Reports'],
                 ['ai-assistant', 'sparkles', 'AI Assistant'],

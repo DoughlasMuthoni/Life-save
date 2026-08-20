@@ -27,6 +27,12 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/monthly', 'reports.monthly')->name('monthly');
     });
 
+    Route::prefix('health')->name('health.')->group(function () {
+        Route::livewire('/weight', 'health.weight')->name('weight');
+        Route::livewire('/workouts', 'health.workouts')->name('workouts');
+        Route::livewire('/meals', 'health.meals')->name('meals');
+    });
+
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::livewire('/messages', 'finance.messages.paste')->name('messages');
         Route::livewire('/accounts', 'finance.accounts')->name('accounts');
