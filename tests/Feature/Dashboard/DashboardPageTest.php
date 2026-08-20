@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Dashboard;
 
+use App\Domain\Calendar\Models\CalendarEvent;
 use App\Domain\Finance\Enums\FinancialAccountProvider;
 use App\Domain\Finance\Services\TransactionService;
 use App\Domain\Goals\Services\SavingsAllocationService;
@@ -45,6 +46,30 @@ class DashboardPageTest extends TestCase
             ->assertSee('M-Pesa Balance')
             ->assertSee('Savings Total')
             ->assertSee('Recent transactions');
+    }
+
+    public function test_todays_calendar_events_appear_on_the_dashboard(): void
+    {
+        $user = User::factory()->create();
+        $this->createFinancialAccount($user);
+        CalendarEvent::create(['user_id' => $user->id, 'title' => 'Dentist today', 'event_date' => today()]);
+        CalendarEvent::create(['user_id' => $user->id, 'title' => 'Next week thing', 'event_date' => today()->addWeek()]);
+
+        Livewire::actingAs($user)
+            ->test('dashboard')
+            ->assertSee('Today')
+            ->assertSee('Dentist today')
+            ->assertDontSee('Next week thing');
+    }
+
+    public function test_no_today_section_when_nothing_is_scheduled(): void
+    {
+        $user = User::factory()->create();
+        $this->createFinancialAccount($user);
+
+        Livewire::actingAs($user)
+            ->test('dashboard')
+            ->assertDontSee('Today');
     }
 
     public function test_the_dashboard_shows_attention_items_when_present(): void

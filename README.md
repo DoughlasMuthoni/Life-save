@@ -18,8 +18,9 @@ The sidebar is grouped by what you're doing, top to bottom:
 
 - **Dashboard** — the one-glance view: net available cash, M-Pesa/savings balances, this
   month vs. last month, top spending categories, anything needing attention (unconfirmed SMS,
-  reconciliation mismatches), savings goal progress, recent transactions, and a couple of
-  AI-generated observations at the bottom. This is meant to be the "where do I stand" screen —
+  reconciliation mismatches), today's calendar events, savings goal progress, recent
+  transactions, and a couple of AI-generated observations at the bottom. This is meant to be
+  the "where do I stand" screen —
   everything on it is a real, computed figure, not a guess.
 - **Finance**
   - **Messages** — paste raw M-Pesa (or bank) SMS text here, one or many at once separated by
@@ -274,7 +275,10 @@ Added as Phase 10, kept deliberately as minimal as Tasks was:
   rather than mutating a "done?" flag). `Habit::currentStreak()` counts consecutive checked-in
   days ending today (or yesterday, if today isn't checked in yet — a streak doesn't look
   broken the moment a new day starts).
-- **Calendar** — a `CalendarEvent` is a title, date, optional time, optional notes. No
+- **Calendar** — a `CalendarEvent` is a title, date, optional time, optional
+  `CalendarEventCategory` (Bill/Appointment/Birthday/Reminder/Other, each with a stable color),
+  optional notes. The page shows a real month grid (click a day to create an event on it) plus
+  an upcoming/past agenda list below it; today's events also surface on the Dashboard. Still no
   recurrence, no external calendar sync.
 
 ## Health (`app/Domain/Health`)

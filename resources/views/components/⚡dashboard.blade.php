@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Calendar\Models\CalendarEvent;
 use App\Domain\Finance\Enums\LedgerAccountType;
 use App\Domain\Finance\Models\Journal;
 use App\Domain\Finance\Services\FinancialReportingService;
@@ -100,6 +101,15 @@ new #[Layout('layouts.authenticated')] class extends Component
     {
         return $reports->getSavingsGoalProgress(auth()->user())->take(3);
     }
+
+    public function getTodaysEventsProperty()
+    {
+        return CalendarEvent::query()
+            ->where('user_id', auth()->id())
+            ->where('event_date', today())
+            ->orderBy('event_time')
+            ->get();
+    }
 };
 ?>
 
@@ -196,7 +206,45 @@ new #[Layout('layouts.authenticated')] class extends Component
             </div>
         @endif
 
-        {{-- 4. Savings goals --}}
+        {{-- 4. Today's calendar events --}}
+        @if ($this->todaysEvents->isNotEmpty())
+            @php
+                $eventIconClasses = [
+                    'red' => 'bg-red-50 text-red-600',
+                    'blue' => 'bg-blue-50 text-blue-600',
+                    'purple' => 'bg-purple-50 text-purple-600',
+                    'amber' => 'bg-amber-50 text-amber-600',
+                    'slate' => 'bg-slate-100 text-slate-600',
+                ];
+            @endphp
+            <x-ui.section title="Today" class="mt-6">
+                <x-slot:actions>
+                    <a href="{{ route('calendar') }}" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                        View calendar <x-icon name="chevron-right" class="h-3 w-3" />
+                    </a>
+                </x-slot:actions>
+                <div class="divide-y divide-slate-100">
+                    @foreach ($this->todaysEvents as $event)
+                        <div class="flex items-center gap-3 px-5 py-3">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full {{ $eventIconClasses[$event->category?->color() ?? 'blue'] }}">
+                                <x-icon name="calendar" class="h-4 w-4" />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm text-slate-900">{{ $event->title }}</p>
+                                @if ($event->event_time)
+                                    <p class="text-xs text-slate-400">{{ \Carbon\Carbon::parse($event->event_time)->format('g:i A') }}</p>
+                                @endif
+                            </div>
+                            @if ($event->category)
+                                <x-ui.badge :color="$event->category->color()">{{ $event->category->label() }}</x-ui.badge>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+            </x-ui.section>
+        @endif
+
+        {{-- 5. Savings goals --}}
         @if ($this->savingsGoals->isNotEmpty())
             <x-ui.section title="Savings goals" class="mt-6">
                 <x-slot:actions>
@@ -220,7 +268,7 @@ new #[Layout('layouts.authenticated')] class extends Component
             </x-ui.section>
         @endif
 
-        {{-- 5. Recent transactions --}}
+        {{-- 6. Recent transactions --}}
         <x-ui.section title="Recent transactions" class="mt-6">
             <x-slot:actions>
                 <a href="{{ route('finance.transactions') }}" class="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
