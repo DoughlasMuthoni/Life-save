@@ -20,6 +20,7 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/tasks', 'tasks')->name('tasks');
     Route::livewire('/notes', 'notes')->name('notes');
     Route::livewire('/habits', 'habits')->name('habits');
+    Route::livewire('/calendar', 'calendar')->name('calendar');
     Route::post('/logout', LogoutController::class)->name('logout');
 
     Route::prefix('reports')->name('reports.')->group(function () {
