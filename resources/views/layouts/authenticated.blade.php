@@ -47,6 +47,7 @@
             'Insights' => [
                 ['reports.monthly', 'chart', 'Reports'],
                 ['ai-assistant', 'sparkles', 'AI Assistant'],
+                ['achievements', 'trophy', 'Achievements'],
             ],
         ];
     @endphp
