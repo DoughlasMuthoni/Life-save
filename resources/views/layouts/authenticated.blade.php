@@ -36,6 +36,7 @@
             ],
             'Personal' => [
                 ['notes', 'document-text', 'Notes'],
+                ['habits', 'fire', 'Habits'],
             ],
             'Insights' => [
                 ['reports.monthly', 'chart', 'Reports'],
