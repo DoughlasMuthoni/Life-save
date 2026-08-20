@@ -59,6 +59,14 @@ Day-to-day, the loop is usually: paste SMS as it comes in → confirm the propos
 dashboard → occasionally record something manually that didn't come via SMS (cash spending,
 say) → ask the AI Assistant when you want a quick answer instead of digging through Reports.
 
+**The bell icon** (top of the sidebar / mobile header) aggregates everything worth knowing
+right now — unconfirmed SMS, reconciliation mismatches, overdue tasks, savings goals behind
+schedule, today's calendar events, and a just-crossed achievement threshold —
+`App\Domain\Notifications\Services\NotificationCenterService`. Nothing here is persisted or
+marked read/unread; each item is derived live and disappears on its own once the thing it
+describes is no longer true. **The floating "?" button** (bottom-right, every page) opens a
+static reference explaining what every module does.
+
 ## Stack
 
 Laravel 13 (PHP 8.3+) · MySQL 8 · Livewire 4 (single-file components) · Alpine.js · Tailwind

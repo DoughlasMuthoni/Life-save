@@ -17,6 +17,12 @@
 </head>
 <body class="h-full overflow-x-hidden font-sans antialiased text-slate-900">
     @php
+        // Computed once here rather than inside notification-bell.blade.php
+        // itself, since that component renders twice per page (mobile
+        // header + desktop sidebar) — this way its handful of queries only
+        // run once per request, not twice.
+        $notifications = app(\App\Domain\Notifications\Services\NotificationCenterService::class)->getNotifications(auth()->user());
+
         $navGroups = [
             null => [
                 ['dashboard', 'home', 'Dashboard'],
@@ -67,7 +73,8 @@
         >
             <div class="flex h-16 shrink-0 items-center gap-2.5 border-b border-slate-200 px-5">
                 <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-semibold text-white">LO</span>
-                <span class="truncate font-semibold text-slate-900">{{ config('app.name') }}</span>
+                <span class="min-w-0 flex-1 truncate font-semibold text-slate-900">{{ config('app.name') }}</span>
+                <x-notification-bell :notifications="$notifications" />
             </div>
 
             <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
@@ -117,7 +124,8 @@
                     <x-icon name="menu" class="h-5 w-5" />
                 </button>
                 <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-xs font-semibold text-white">LO</span>
-                <span class="font-semibold text-slate-900">{{ config('app.name') }}</span>
+                <span class="min-w-0 flex-1 font-semibold text-slate-900">{{ config('app.name') }}</span>
+                <x-notification-bell :notifications="$notifications" />
             </header>
 
             <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
