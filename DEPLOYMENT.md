@@ -1,6 +1,6 @@
 # Deploying lifesave
 
-Target: `douglas.waterliftsolar.africa` on ordinary shared PHP/MySQL hosting (CLAUDE.md §17)
+Target: `douglas.waterliftsolarsavings.africa` on ordinary shared PHP/MySQL hosting (CLAUDE.md §17)
 — no Docker, no Redis, no permanently-running process required. Everything here assumes a
 typical cPanel-style host, but the steps translate directly to any shared host that gives you
 SSH or a file manager, a MySQL database, and cron.
@@ -22,7 +22,7 @@ worth checking first:
   commands. If you only have FTP + a web-based cron panel, everything below still works, it's
   just more manual (see the callouts).
 - **The domain's SSL certificate** — most hosts offer free AutoSSL/Let's Encrypt; make sure
-  it's issued for `douglas.waterliftsolar.africa` before going live.
+  it's issued for `douglas.waterliftsolarsavings.africa` before going live.
 
 ## 2. Build locally, before uploading
 
@@ -60,7 +60,7 @@ git-ignored.
 Either way, the web server's **document root must point at the `public/` folder**, not the
 project root — this is the single most common shared-hosting Laravel mistake. In cPanel this
 is usually a "Domains" setting where you choose the document root for
-`douglas.waterliftsolar.africa`.
+`douglas.waterliftsolarsavings.africa`.
 
 ## 4. Configure `.env` on the server
 
@@ -71,7 +71,7 @@ APP_NAME="Life OS"
 APP_ENV=production
 APP_KEY=                          # leave blank, generate in step 5
 APP_DEBUG=false
-APP_URL=https://douglas.waterliftsolar.africa
+APP_URL=https://douglas.waterliftsolarsavings.africa
 
 LOG_LEVEL=error
 
@@ -136,7 +136,7 @@ schedules `app:backup-database` daily at 02:00; nothing else needs its own cron 
 
 ## 7. Verify
 
-- Visit `https://douglas.waterliftsolar.africa/up` — Laravel's built-in health check, should
+- Visit `https://douglas.waterliftsolarsavings.africa/up` — Laravel's built-in health check, should
   return 200.
 - Visit `/login`, sign in with the owner account created in step 5.
 - Check `/dashboard` loads and shows real (zeroed, since it's a fresh database) figures.

@@ -365,7 +365,7 @@ Do NOT treat as requirements:
 
 ## 17. Shared-Hosting Constraints
 
-**Deployment target:** production domain is `douglas.waterliftsolar.africa`, a single-owner
+**Deployment target:** production domain is `douglas.waterliftsolarsavings.africa`, a single-owner
 deployment (owner: Douglas). `APP_URL`, the PWA manifest `start_url`/`scope`, and any
 CORS/CSRF trusted-host config MUST use this domain in production. Treat it as a subdomain
 deployment on shared/managed hosting unless told otherwise — don't assume a dedicated VPS.

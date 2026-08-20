@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Env-driven, not hardcoded: with no explicit host list, Laravel
         // trusts APP_URL's own host (and its subdomains) — set APP_URL
         // correctly per environment and this always matches (CLAUDE.md
-        // §17: production APP_URL is douglas.waterliftsolar.africa).
+        // §17: production APP_URL is douglas.waterliftsolarsavings.africa).
         $middleware->trustHosts();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

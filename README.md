@@ -262,7 +262,7 @@ npm run build
 php artisan serve
 ```
 
-Deployment target is `douglas.waterliftsolar.africa` on ordinary shared PHP/MySQL hosting —
+Deployment target is `douglas.waterliftsolarsavings.africa` on ordinary shared PHP/MySQL hosting —
 see `CLAUDE.md` §17 for the constraints that implies (no required Docker/Redis, no
 permanently-running queue worker, database-backed queue driven by cron).
 
