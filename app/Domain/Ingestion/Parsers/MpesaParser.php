@@ -28,7 +28,8 @@ class MpesaParser
             ?? $this->parseSendMoney($normalizedText)
             ?? $this->parseReceiveMoney($normalizedText)
             ?? $this->parseWithdrawal($normalizedText)
-            ?? $this->parseFuliza($normalizedText);
+            ?? $this->parseFuliza($normalizedText)
+            ?? $this->parseFulizaRepayment($normalizedText);
     }
 
     private function parseSendMoney(string $text): ?ParsedMessage
@@ -165,6 +166,37 @@ class MpesaParser
             externalTransactionId: $this->extractTransactionCode($text),
             counterparty: 'Fuliza (due '.$m['duedate'].')',
             reportedBalanceMinor: Money::toMinorUnits($m['outstanding']),
+        );
+    }
+
+    /**
+     * M-Pesa auto-deducting to repay outstanding Fuliza. Only handles the
+     * "fully pay" wording actually seen in the wild so far — a partial
+     * repayment SMS may well use different phrasing and would correctly
+     * fall through to AI/needs-review rather than this pattern silently
+     * mismatching it. reportedBalanceMinor is M-Pesa's own post-repayment
+     * balance (same convention as every other pattern here), not Fuliza's
+     * — reconciliation always checks the observed balance against the
+     * *source* account, which for a repayment is M-Pesa, not Fuliza.
+     */
+    private function parseFulizaRepayment(string $text): ?ParsedMessage
+    {
+        if (! preg_match(
+            '/Ksh\s*(?<amount>[\d,]+\.\d{2})\s+from your M-PESA has been used to fully pay your outstanding Fuliza M-PESA\.\s*Available Fuliza M-PESA limit is\s+Ksh\s*(?<limit>[\d,]+\.\d{2})\.\s*Your M-PESA balance is\s+(?<balance>[\d,]+\.\d{2})/i',
+            $text,
+            $m
+        )) {
+            return null;
+        }
+
+        return new ParsedMessage(
+            transactionType: ExtractedTransactionType::FULIZA_REPAYMENT,
+            amountMinor: Money::toMinorUnits($m['amount']),
+            feeMinor: 0,
+            transactionTime: CarbonImmutable::now(),
+            externalTransactionId: $this->extractTransactionCode($text),
+            counterparty: 'Fuliza repayment (limit available: Ksh '.$m['limit'].')',
+            reportedBalanceMinor: Money::toMinorUnits($m['balance']),
         );
     }
 

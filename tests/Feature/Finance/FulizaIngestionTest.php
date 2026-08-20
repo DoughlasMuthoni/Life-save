@@ -25,6 +25,12 @@ class FulizaIngestionTest extends TestCase
             'To check daily charges, Dial *334#OK Select Query Charges';
     }
 
+    private function fulizaRepaymentSms(): string
+    {
+        return 'UHGJK2U460 Confirmed. Ksh 192.58 from your M-PESA has been used to fully pay your outstanding Fuliza M-PESA. '.
+            'Available Fuliza M-PESA limit is Ksh 600.00. Your M-PESA balance is 57.42.';
+    }
+
     public function test_a_fuliza_message_is_parsed_deterministically_as_a_transfer_shaped_proposal(): void
     {
         $user = User::factory()->create();
@@ -80,6 +86,57 @@ class FulizaIngestionTest extends TestCase
         $fulizaEntry = $entries->firstWhere('ledger_account_id', $fuliza->ledger_account_id);
         $this->assertSame(LedgerEntrySide::CREDIT, $fulizaEntry->side);
         $this->assertSame(2020, $fulizaEntry->amount_minor);
+    }
+
+    public function test_a_fuliza_repayment_message_is_parsed_deterministically(): void
+    {
+        $user = User::factory()->create();
+
+        $message = app(FinancialMessageIngestionService::class)->ingest($user, $this->fulizaRepaymentSms());
+
+        $proposal = $message->proposedTransaction;
+        $this->assertNotNull($proposal);
+        $this->assertSame(ExtractedTransactionType::FULIZA_REPAYMENT, $proposal->transaction_type);
+        $this->assertSame(19258, $proposal->amount_minor);
+    }
+
+    public function test_repayment_account_guessing_keeps_mpesa_as_source_fuliza_as_destination(): void
+    {
+        $user = User::factory()->create();
+        $fuliza = $this->createFinancialAccount($user, 'Fuliza', FinancialAccountProvider::FULIZA, type: LedgerAccountType::LIABILITY);
+        $mpesa = $this->createFinancialAccount($user, 'M-Pesa', FinancialAccountProvider::MPESA);
+
+        $message = app(FinancialMessageIngestionService::class)->ingest($user, $this->fulizaRepaymentSms());
+        $proposal = $message->proposedTransaction;
+
+        $this->assertSame($mpesa->id, $proposal->financial_account_id);
+        $this->assertSame($fuliza->id, $proposal->destination_financial_account_id);
+    }
+
+    public function test_confirming_a_fuliza_repayment_pays_down_the_liability_and_debits_mpesa(): void
+    {
+        $user = User::factory()->create();
+        $fuliza = $this->createFinancialAccount($user, 'Fuliza', FinancialAccountProvider::FULIZA, type: LedgerAccountType::LIABILITY);
+        $mpesa = $this->createFinancialAccount($user, 'M-Pesa', FinancialAccountProvider::MPESA);
+        $fees = $this->createExpenseCategory($user, 'Fuliza Fees');
+
+        // Owe 2020 first (the drawdown from the earlier test), then repay
+        // the exact amount the repayment SMS describes.
+        $drawdown = app(FinancialMessageIngestionService::class)->ingest($user, $this->fulizaSms());
+        app(ProposedTransactionConfirmationService::class)->confirm($user, $drawdown->proposedTransaction, [
+            'fee_category_id' => $fees->id,
+        ]);
+        $this->assertSame(2020, $fuliza->fresh()->balanceMinor());
+
+        $repayment = app(FinancialMessageIngestionService::class)->ingest($user, $this->fulizaRepaymentSms());
+        app(ProposedTransactionConfirmationService::class)->confirm($user, $repayment->proposedTransaction);
+
+        // Fuliza owed 2020; the repayment SMS pays 19258 — an unrelated
+        // amount in this test's numbers (real life: "fully pay" would
+        // exactly zero it out), but the point being verified is direction:
+        // the liability DECREASES and M-Pesa DECREASES, not the reverse.
+        $this->assertSame(2020 - 19258, $fuliza->fresh()->balanceMinor());
+        $this->assertSame(2000 - 19258, $mpesa->fresh()->balanceMinor());
     }
 
     public function test_a_liability_account_can_be_created_and_shows_up_as_a_liability(): void

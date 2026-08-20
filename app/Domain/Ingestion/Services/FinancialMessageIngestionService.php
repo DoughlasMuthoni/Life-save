@@ -318,21 +318,25 @@ class FinancialMessageIngestionService
      */
     private function resolveAccountGuesses(User $user, MessageProvider $provider, ParsedMessage $parsed, TransactionShape $shape): array
     {
+        $primaryProvider = $this->mapToFinancialAccountProvider($provider);
+
         // A Fuliza drawdown runs the other way round from every other
         // transfer-shaped message: the source is the Fuliza liability
         // (which increases — you owe more), the destination is the M-Pesa
-        // account the borrowed funds land in. Every other pattern treats
-        // the detected message provider as the source account.
-        if ($parsed->transactionType === ExtractedTransactionType::FULIZA_DRAWDOWN) {
-            return [
-                $this->guessAccount($user, FinancialAccountProvider::FULIZA),
-                $this->guessAccount($user, $this->mapToFinancialAccountProvider($provider)),
-            ];
-        }
+        // account the borrowed funds land in. A withdrawal or a Fuliza
+        // repayment both keep the detected message provider as the
+        // source, only the destination differs (cash vs. paying down the
+        // Fuliza liability).
+        [$sourceProvider, $destinationProvider] = match ($parsed->transactionType) {
+            ExtractedTransactionType::FULIZA_DRAWDOWN => [FinancialAccountProvider::FULIZA, $primaryProvider],
+            ExtractedTransactionType::FULIZA_REPAYMENT => [$primaryProvider, FinancialAccountProvider::FULIZA],
+            ExtractedTransactionType::WITHDRAWAL => [$primaryProvider, FinancialAccountProvider::CASH],
+            default => [$primaryProvider, $shape === TransactionShape::TRANSFER ? FinancialAccountProvider::CASH : null],
+        };
 
         return [
-            $this->guessAccount($user, $this->mapToFinancialAccountProvider($provider)),
-            $shape === TransactionShape::TRANSFER ? $this->guessAccount($user, FinancialAccountProvider::CASH) : null,
+            $this->guessAccount($user, $sourceProvider),
+            $destinationProvider !== null ? $this->guessAccount($user, $destinationProvider) : null,
         ];
     }
 }

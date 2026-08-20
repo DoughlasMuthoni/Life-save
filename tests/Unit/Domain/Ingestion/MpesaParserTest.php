@@ -131,6 +131,24 @@ class MpesaParserTest extends TestCase
         $this->assertStringContainsString('15/09/26', $result->counterparty);
     }
 
+    public function test_it_parses_a_fuliza_repayment_message(): void
+    {
+        $text = $this->normalize(
+            'UHGJK2U460 Confirmed. Ksh 192.58 from your M-PESA has been used to fully pay your outstanding Fuliza M-PESA. '.
+            'Available Fuliza M-PESA limit is Ksh 600.00. Your M-PESA balance is 57.42.'
+        );
+
+        $result = $this->parser->parse($text);
+
+        $this->assertNotNull($result);
+        $this->assertSame(ExtractedTransactionType::FULIZA_REPAYMENT, $result->transactionType);
+        $this->assertSame(19258, $result->amountMinor);
+        $this->assertSame(0, $result->feeMinor);
+        $this->assertSame('UHGJK2U460', $result->externalTransactionId);
+        $this->assertSame(5742, $result->reportedBalanceMinor);
+        $this->assertStringContainsString('600.00', $result->counterparty);
+    }
+
     public function test_it_returns_null_for_an_unrecognized_message(): void
     {
         $text = $this->normalize('Your loan of Ksh5,000.00 has been approved. Visit the app for details.');

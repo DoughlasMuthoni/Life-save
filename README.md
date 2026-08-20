@@ -122,7 +122,9 @@ liability's balance alongside asset balances would have added debt to "available
 instead of subtracting it. A Fuliza drawdown SMS parses deterministically
 (`MpesaParser::parseFuliza()`) into a transfer-shaped proposal — the liability is credited
 (increases) and the M-Pesa account is debited (increases) by the borrowed amount, with the
-access fee posting as a real expense, exactly like any other transfer with a fee.
+access fee posting as a real expense, exactly like any other transfer with a fee. A repayment
+SMS ("...used to fully pay your outstanding Fuliza M-PESA...") parses the same way in
+reverse — M-Pesa decreases, the liability decreases — via `MpesaParser::parseFulizaRepayment()`.
 
 **Services:**
 - `LedgerService::postJournal()` — the only path anything uses to write to the ledger; wraps

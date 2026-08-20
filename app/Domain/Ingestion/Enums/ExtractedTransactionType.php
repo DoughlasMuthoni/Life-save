@@ -16,6 +16,7 @@ enum ExtractedTransactionType: string
     case BANK_DEBIT = 'bank_debit';
     case BANK_CREDIT = 'bank_credit';
     case FULIZA_DRAWDOWN = 'fuliza_drawdown';
+    case FULIZA_REPAYMENT = 'fuliza_repayment';
 
     /**
      * The ledger "shape" this transaction type must be posted as. A cash
@@ -31,13 +32,16 @@ enum ExtractedTransactionType: string
      * the fee posts as a normal expense — exactly what TransferService
      * already does for any two ledger accounts regardless of type, so no
      * new posting logic is needed, only a new source/destination pairing.
+     * A Fuliza repayment is the same shape run the other way: M-Pesa
+     * decreases (credited), Fuliza decreases (debited) — ordinary
+     * TransferService semantics for a liability being paid down.
      */
     public function shape(): TransactionShape
     {
         return match ($this) {
             self::RECEIVE_MONEY, self::BANK_CREDIT => TransactionShape::INCOME,
             self::SEND_MONEY, self::BUY_GOODS, self::PAYBILL, self::BANK_DEBIT => TransactionShape::EXPENSE,
-            self::WITHDRAWAL, self::FULIZA_DRAWDOWN => TransactionShape::TRANSFER,
+            self::WITHDRAWAL, self::FULIZA_DRAWDOWN, self::FULIZA_REPAYMENT => TransactionShape::TRANSFER,
         };
     }
 }
