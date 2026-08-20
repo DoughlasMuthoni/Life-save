@@ -11,7 +11,7 @@ README is a practical map of how each module actually works.
 
 ## Stack
 
-Laravel 13 (PHP 8.4.1+) · MySQL 8 · Livewire 4 (single-file components) · Alpine.js · Tailwind
+Laravel 13 (PHP 8.2+) · MySQL 8 · Livewire 4 (single-file components) · Alpine.js · Tailwind
 CSS v4 + `@tailwindcss/forms` · Chart-ready but chart-free so far · database-backed queues ·
 PWA (manifest + service worker) · Claude API via a provider-agnostic AI abstraction.
 

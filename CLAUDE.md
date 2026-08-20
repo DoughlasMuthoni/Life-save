@@ -36,7 +36,7 @@ In order:
 ## 3. Technology Stack
 
 **MUST use:**
-- Laravel (latest stable) + PHP (typed, modern PHP — 8.4.1+)
+- Laravel (latest stable) + PHP (typed, modern PHP — 8.2+)
 - MySQL 8+, via Laravel migrations and Eloquent
 - Livewire for interactive server-rendered UI
 - Alpine.js for light client-side interactivity where Livewire is overkill
