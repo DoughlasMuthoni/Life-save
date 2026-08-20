@@ -7,11 +7,58 @@ do next" — with AI as an explainer and assistant, never as the source of finan
 
 Full product rules, non-negotiables, and phase plan live in [`CLAUDE.md`](CLAUDE.md) at the
 repo root — that document governs this codebase and is the authoritative reference. This
-README is a practical map of how each module actually works.
+README is a practical map of how each module actually works, plus a guide to actually using
+and deploying the app.
+
+Live at **https://douglas.waterliftsolarsavings.africa/**.
+
+## Using the app
+
+The sidebar is grouped by what you're doing, top to bottom:
+
+- **Dashboard** — the one-glance view: net available cash, M-Pesa/savings balances, this
+  month vs. last month, top spending categories, anything needing attention (unconfirmed SMS,
+  reconciliation mismatches), savings goal progress, recent transactions, and a couple of
+  AI-generated observations at the bottom. This is meant to be the "where do I stand" screen —
+  everything on it is a real, computed figure, not a guess.
+- **Finance**
+  - **Messages** — paste raw M-Pesa (or bank) SMS text here, one or many at once separated by
+    a blank line. Each gets parsed automatically; anything the deterministic parser can't
+    confidently read falls back to AI, which only ever produces a *proposal* you still have to
+    confirm. Confirm/Edit/Reject each one under "Ready to review" — nothing posts to the ledger
+    until you confirm it. Possible duplicates are flagged separately for a second look.
+  - **Accounts** / **Categories** — set these up first: your real accounts (M-Pesa, M-Shwari,
+    bank, cash) and your income/expense categories. SMS parsing and manual entry both need
+    these to exist.
+  - **Transactions** — the full ledger history, newest first, with a Reverse action on
+    anything that needs correcting (this posts an offsetting entry — it never deletes or edits
+    the original).
+  - Manual entry — three separate forms for **Record Income**, **Record Expense** (with an
+    optional fee), and **Record Transfer** (moving money between your own accounts — never
+    treated as income/expense).
+  - **Reconciliation** — shows up automatically when an SMS-reported balance doesn't match
+    what the ledger calculates. Resolving one requires a note explaining what you found; it
+    never silently overwrites a balance.
+- **Planning** — **Savings Goals** (with real-vs-virtual allocation breakdown per account),
+  **Wishlist** (affordability projected in three scenarios per item), **Shopping** (what you
+  bought, separate from how you paid for it), **Tasks** (a plain to-do list).
+- **Personal** — **Notes** (freeform), **Habits** (a daily check-in and streak per habit),
+  **Calendar** (dated events, upcoming and past).
+- **Health** — **Weight** (a log with the change vs. your last entry), **Workouts** (type +
+  duration), **Meals** (a basic food log, no calorie/macro tracking).
+- **Insights** — **Reports** (a proper monthly report: income/expense/net, period comparison,
+  category breakdown, largest transactions), **AI Assistant** (ask it things like "where did
+  most of my money go this month?" — it always pulls real numbers, never estimates one
+  itself), **Achievements** (read-only badges computed from your actual activity — habit
+  streaks, completed tasks/goals, purchased wishlist items).
+
+Day-to-day, the loop is usually: paste SMS as it comes in → confirm the proposals → check the
+dashboard → occasionally record something manually that didn't come via SMS (cash spending,
+say) → ask the AI Assistant when you want a quick answer instead of digging through Reports.
 
 ## Stack
 
-Laravel 13 (PHP 8.2+) · MySQL 8 · Livewire 4 (single-file components) · Alpine.js · Tailwind
+Laravel 13 (PHP 8.3+) · MySQL 8 · Livewire 4 (single-file components) · Alpine.js · Tailwind
 CSS v4 + `@tailwindcss/forms` · Chart-ready but chart-free so far · database-backed queues ·
 PWA (manifest + service worker) · Claude API via a provider-agnostic AI abstraction.
 
@@ -29,15 +76,20 @@ UI, AI layer, or a cached column is ever treated as authoritative over the ledge
 
 ```
 app/Domain/
-  Finance/      double-entry ledger, accounts, categories, transfers, reversals, reporting
-  Ingestion/    raw SMS → parsed → proposed transaction → confirmed posting
-  AI/           Claude provider abstraction + read-only financial assistant tools
-  Goals/        savings goals and virtual allocations
-  Wishlist/     wishlist items + deterministic affordability scenarios
-  Shopping/     purchases and line items, separate from how they were paid
-  Tasks/        a minimal personal task list
-  Audit/        an append-only log of important actions
-  Support/      small cross-domain primitives (e.g. the Priority enum)
+  Finance/        double-entry ledger, accounts, categories, transfers, reversals, reporting
+  Ingestion/      raw SMS → parsed → proposed transaction → confirmed posting
+  AI/             Claude provider abstraction + read-only financial assistant tools
+  Goals/          savings goals and virtual allocations
+  Wishlist/       wishlist items + deterministic affordability scenarios
+  Shopping/       purchases and line items, separate from how they were paid
+  Tasks/          a minimal personal task list
+  Notes/          freeform notes
+  Habits/         daily check-ins + streaks
+  Calendar/       dated events
+  Health/         weight, workouts, meals — three independent logs
+  Achievements/   read-only badges computed from other modules' data (no table of its own)
+  Audit/          an append-only log of important actions
+  Support/        small cross-domain primitives (e.g. the Priority enum)
 ```
 
 ---
@@ -194,6 +246,40 @@ Calendar, habits, and notes are explicitly out of scope here — see `CLAUDE.md`
 
 Page: **Tasks** — open list, add form, recently-closed history with reopen.
 
+## Notes, Habits, Calendar (`app/Domain/{Notes,Habits,Calendar}`)
+
+Added as Phase 10, kept deliberately as minimal as Tasks was:
+
+- **Notes** — a `Note` is just an optional title + body. Edit/delete in place, no tags, no
+  rich text, no attachments.
+- **Habits** — a `Habit` is just a name. A single tap toggles a `HabitCheckIn` for today
+  (an immutable event log, unique per habit per day — undoing a mis-tap deletes and re-adds
+  rather than mutating a "done?" flag). `Habit::currentStreak()` counts consecutive checked-in
+  days ending today (or yesterday, if today isn't checked in yet — a streak doesn't look
+  broken the moment a new day starts).
+- **Calendar** — a `CalendarEvent` is a title, date, optional time, optional notes. No
+  recurrence, no external calendar sync.
+
+## Health (`app/Domain/Health`)
+
+Three independent logs, scoped to exactly what was asked for — weight tracking, workouts, and
+meals — with no calorie/macro computation and no structured training plans:
+
+- **Weight** (`WeightEntry`) — date + weight in kg + optional notes. The Weight page shows the
+  change vs. the previous entry (green when down, amber when up).
+- **Workouts** (`WorkoutEntry`) — date, a freeform type (e.g. "Running", "Gym"), duration in
+  minutes, optional notes.
+- **Meals** (`MealEntry`) — a datetime, an optional `MealType` (breakfast/lunch/dinner/snack),
+  and a description of what was eaten.
+
+## Achievements (`app/Domain/Achievements`)
+
+Read-only badges, computed live — no table, no rules engine, no manual awarding.
+`AchievementService` is a fixed, hand-written list of thresholds read straight from other
+modules' data: habit streaks at 7/30/100 days, tasks completed at 10/50, savings goals
+completed at 1/5, wishlist items purchased at 1/5. Nothing here is persisted, so there's
+nothing that can fall out of sync with what actually happened.
+
 ## Audit (`app/Domain/Audit`)
 
 `AuditEvent` is an append-only log (`AuditLogger` service, `AuditAction` enum) recording the
@@ -225,7 +311,7 @@ priority order in `CLAUDE.md` §2: financial state first, AI narration last.
 are the shared building blocks every page is built from — colored circular icon badges,
 `rounded-2xl` cards, consistent empty states, and KSh-prefixed amount inputs throughout.
 `layouts/authenticated.blade.php` is the shell: a fixed left sidebar (Dashboard / Finance /
-Planning / Insights) with an Alpine-powered mobile toggle. Native form controls
+Planning / Personal / Health / Insights) with an Alpine-powered mobile toggle. Native form controls
 (`input`/`select`/`textarea`/checkbox) are reset consistently app-wide via
 `@tailwindcss/forms`.
 
@@ -262,9 +348,81 @@ npm run build
 php artisan serve
 ```
 
-Deployment target is `douglas.waterliftsolarsavings.africa` on ordinary shared PHP/MySQL hosting —
-see `CLAUDE.md` §17 for the constraints that implies (no required Docker/Redis, no
-permanently-running queue worker, database-backed queue driven by cron).
+## Deployment — how GitHub connects to cPanel
+
+Live at `douglas.waterliftsolarsavings.africa`, on Truehost's shared PHP/MySQL hosting (cPanel
+account `vdramulh`) — see `CLAUDE.md` §17 for the constraints that implies (no Docker/Redis, no
+permanently-running queue worker, database-backed queue driven by cron). There's no CI/CD —
+deploys are a deliberate manual step, matching "boring, inspectable" shared hosting.
+
+**Repo:** https://github.com/DoughlasMuthoni/Life-save — two branches, two different jobs:
+
+- **`main`** — the real source of truth. Every commit in this repo's history lives here.
+  `vendor/` and `public/build/` are git-ignored, same as any normal Laravel repo.
+- **`deploy`** — not a feature branch, and never opened as a PR. It's a single squashed commit,
+  rebuilt from scratch off `main` every time a deploy happens: `composer install --no-dev
+  --optimize-autoloader` and `npm run build`, then `vendor/` and `public/build/` are
+  force-added and committed on top. It exists purely so the server never needs Composer or
+  Node installed — cloning/pulling this one branch gets a fully ready-to-run app.
+
+**On the server**, the app lives at `/home/vdramulh/lifesave-app` — **outside** the
+subdomain's web-facing folder on purpose (`app/`, `.env`, `vendor/`, `composer.json` must never
+be reachable by a browser). The subdomain's **Document Root** is set to
+`/home/vdramulh/lifesave-app/public`, which is the only part of the app the web server ever
+serves directly.
+
+### Shipping a change
+
+```bash
+# locally
+git checkout main
+git pull
+composer install --no-dev --optimize-autoloader
+npm run build
+php artisan test        # never skip this before a deploy
+
+# rebuild the deploy branch (see the exact sequence used when this was first set up:
+# clone main fresh into a scratch dir, composer install --no-dev, npm run build,
+# git checkout -b deploy, git add -f vendor public/build, commit, force-push)
+git push origin main
+git push --force origin deploy
+```
+
+```bash
+# on the server, over SSH
+cd ~/lifesave-app
+git fetch origin
+git reset --hard origin/deploy   # .env is git-ignored — untouched by this
+ea-php85 artisan migrate --force   # only if there are new migrations
+```
+
+### Two host-specific gotchas worth knowing before touching this again
+
+- **PHP version:** the app requires PHP 8.3+ (see `composer.json`). This account's **CLI**
+  `php` binary and **MultiPHP Manager**'s PHP-version selector for this domain don't reliably
+  agree with each other, and switching the domain's PHP version there has previously caused a
+  broken `AddHandler` line to get auto-written into the live `public/.htaccess`, breaking the
+  site with a bare 403 (no log line — it took a static-file-vs-`.php`-file test to even
+  isolate that it was PHP execution being blocked, not the docroot itself). Composer
+  dependencies (Symfony components, specifically) were pinned to the `^7.2` line rather than
+  the newer `8.1.x` line precisely so the app works on this account's actual, reliably-working
+  PHP 8.3 — **don't "fix" that pin without good reason**, and avoid touching MultiPHP Manager
+  for this domain at all if possible. Always invoke the CLI explicitly as `ea-php85` (or
+  whichever `ea-phpXX` binary is confirmed working), never bare `php`, both interactively and
+  in cron.
+- **`storage:link` doesn't work here** — this account has PHP's `exec()` disabled (a common
+  shared-hosting hardening), which Laravel's `storage:link` command depends on internally.
+  Create the symlink directly instead: `ln -s ~/lifesave-app/storage/app/public
+  ~/lifesave-app/public/storage`.
+
+### Cron
+
+One entry (cPanel → Cron Jobs), every minute:
+```
+* * * * * /usr/local/bin/ea-php85 /home/vdramulh/lifesave-app/artisan schedule:run >> /dev/null 2>&1
+```
+This is what fires the daily 2am database backup (`app:backup-database`) — see `DEPLOYMENT.md`
+for the general, host-agnostic version of this whole guide.
 
 ## Where the rules live
 

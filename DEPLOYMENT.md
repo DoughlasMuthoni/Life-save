@@ -105,7 +105,9 @@ Never commit this file. `.env` is already git-ignored.
 Run these once, over SSH (or your host's terminal/cron-run-once panel if no SSH):
 
 ```bash
-php artisan key:generate          # writes APP_KEY into .env
+php artisan key:generate          # writes APP_KEY into .env — the line must already exist
+                                   # in .env (even blank) or this fails with "No APP_KEY
+                                   # variable was found"; add `APP_KEY=` by hand if needed
 php artisan migrate --force       # --force is required outside 'local'/'testing'
 php artisan storage:link
 php artisan app:create-owner-account   # creates the single owner account interactively
@@ -120,6 +122,28 @@ chmod -R 775 storage bootstrap/cache
 (The exact user/group depends on the host — cPanel accounts usually don't need anything
 fancier than this; ask your host's support if PHP can't write to `storage/logs`.)
 
+**Two gotchas that showed up on the first real deploy (Truehost/cPanel), worth checking
+early on any similarly-locked-down shared host:**
+
+- **`php artisan storage:link` can fail with `Call to undefined function
+  Illuminate\Filesystem\exec()`** if the host has PHP's `exec()` disabled (a common
+  hardening measure). Create the symlink directly instead — it does the exact same thing:
+  ```bash
+  ln -s $(pwd)/storage/app/public $(pwd)/public/storage
+  ```
+- **A host's "switch PHP version" tool (cPanel's MultiPHP Manager) may not reliably change
+  what the CLI `php` binary resolves to, and may not correctly wire up the domain's PHP
+  handler either** — symptoms look like: CLI `php -v` still reports the old version after
+  switching, and/or the site returns a bare 403 with no error logged at all once you're on a
+  non-default PHP version (a broken `AddHandler` line cPanel writes into `public/.htaccess`).
+  If that happens: find the actual versioned CLI binary (`ls /usr/local/bin/ | grep -i php`,
+  look for something like `ea-php85`) and use that explicitly everywhere — interactively and
+  in cron — instead of bare `php`. And check whether it's actually simpler to make the app's
+  own `composer.json` dependency constraints match a PHP version that's *already* working
+  reliably on the host, rather than fighting the host's version switcher (this project pins
+  Symfony components to `^7.2` instead of the newer `8.1.x` line for exactly this reason —
+  see the README's Deployment section for the specifics of what was pinned and why).
+
 ## 6. Cron — the one entry that makes background work run
 
 Shared hosting can't run a permanent queue worker, so everything scheduled (the daily database
@@ -127,11 +151,15 @@ backup added in this project, and any future queued work) runs through Laravel's
 which itself needs exactly **one** cron entry to fire every minute:
 
 ```
-* * * * * cd /home/<cpanel-user>/lifesave && php artisan schedule:run >> /dev/null 2>&1
+* * * * * /usr/local/bin/php /home/<cpanel-user>/lifesave/artisan schedule:run >> /dev/null 2>&1
 ```
 
 Add this in your host's "Cron Jobs" panel (cPanel: Advanced → Cron Jobs). Use the *absolute*
-path to the project on the server. That single line is enough — `routes/console.php` already
+path to both the PHP binary and the project's `artisan` file — cron doesn't run with the same
+`PATH`/shell aliases as an interactive session, so a bare `php` that works fine when you type
+it yourself can silently resolve to nothing (or the wrong version) in cron. If the "switch PHP
+version" gotcha above applies to your host, use that same versioned binary here too (e.g.
+`/usr/local/bin/ea-php85`). That single cron line is enough — `routes/console.php` already
 schedules `app:backup-database` daily at 02:00; nothing else needs its own cron entry.
 
 ## 7. Verify
