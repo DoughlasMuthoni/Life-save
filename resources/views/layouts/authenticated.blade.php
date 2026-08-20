@@ -34,6 +34,9 @@
                 ['shopping', 'bag', 'Shopping'],
                 ['tasks', 'check-circle', 'Tasks'],
             ],
+            'Personal' => [
+                ['notes', 'document-text', 'Notes'],
+            ],
             'Insights' => [
                 ['reports.monthly', 'chart', 'Reports'],
                 ['ai-assistant', 'sparkles', 'AI Assistant'],
