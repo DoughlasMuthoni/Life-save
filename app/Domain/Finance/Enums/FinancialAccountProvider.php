@@ -9,5 +9,6 @@ enum FinancialAccountProvider: string
     case KCB_MPESA = 'kcb_mpesa';
     case BANK = 'bank';
     case CASH = 'cash';
+    case FULIZA = 'fuliza';
     case OTHER = 'other';
 }

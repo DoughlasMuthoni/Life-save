@@ -112,6 +112,25 @@ class MpesaParserTest extends TestCase
         $this->assertSame(2800, $result->feeMinor);
     }
 
+    public function test_it_parses_a_fuliza_drawdown_message(): void
+    {
+        $text = $this->normalize(
+            'UHIJK33R8O Confirmed. Fuliza M-PESA amount is Ksh 20.00. Access Fee charged Ksh 0.20. '.
+            'Total Fuliza M-PESA outstanding amount is Ksh585.38 due on 15/09/26. '.
+            'To check daily charges, Dial *334#OK Select Query Charges'
+        );
+
+        $result = $this->parser->parse($text);
+
+        $this->assertNotNull($result);
+        $this->assertSame(ExtractedTransactionType::FULIZA_DRAWDOWN, $result->transactionType);
+        $this->assertSame(2000, $result->amountMinor);
+        $this->assertSame(20, $result->feeMinor);
+        $this->assertSame('UHIJK33R8O', $result->externalTransactionId);
+        $this->assertSame(58538, $result->reportedBalanceMinor);
+        $this->assertStringContainsString('15/09/26', $result->counterparty);
+    }
+
     public function test_it_returns_null_for_an_unrecognized_message(): void
     {
         $text = $this->normalize('Your loan of Ksh5,000.00 has been approved. Visit the app for details.');

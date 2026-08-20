@@ -3,6 +3,7 @@
 namespace Tests\Unit\Domain\Finance;
 
 use App\Domain\Finance\Enums\FinancialAccountProvider;
+use App\Domain\Finance\Enums\LedgerAccountType;
 use App\Domain\Finance\Services\FinancialReportingService;
 use App\Domain\Finance\Services\ReversalService;
 use App\Domain\Finance\Services\TransactionService;
@@ -162,6 +163,36 @@ class FinancialReportingServiceTest extends TestCase
         $netAvailable = $this->reports->netAvailableCashMinor($user, app(SavingsAllocationService::class));
 
         $this->assertSame(3000000, $netAvailable);
+    }
+
+    public function test_net_available_cash_subtracts_an_outstanding_liability_balance(): void
+    {
+        $user = User::factory()->create();
+        $mpesa = $this->createFinancialAccount($user, 'M-Pesa', FinancialAccountProvider::MPESA);
+        $fuliza = $this->createFinancialAccount($user, 'Fuliza', FinancialAccountProvider::FULIZA, type: LedgerAccountType::LIABILITY);
+        $fees = $this->createExpenseCategory($user, 'Fuliza Fees');
+
+        app(TransactionService::class)->recordIncome($user, $mpesa, $this->createIncomeCategory($user), 1000000);
+
+        // Fuliza drawdown: Ksh200 borrowed (+ Ksh5 fee) lands in M-Pesa,
+        // and Fuliza — a liability — owes that much more.
+        app(TransferService::class)->recordTransfer(
+            user: $user,
+            from: $fuliza,
+            to: $mpesa,
+            amountMinor: 20000,
+            feeCategory: $fees,
+            feeMinor: 500,
+        );
+
+        $netAvailable = $this->reports->netAvailableCashMinor($user, app(SavingsAllocationService::class));
+
+        // M-Pesa: 1,000,000 + 20,000 (drawdown) = 1,020,000
+        // Fuliza owed: 20,000 + 500 (fee) = 20,500
+        // Net: 1,020,000 - 20,500 = 999,500 — the fee genuinely cost money,
+        // so net available cash should end up slightly below the original
+        // 1,000,000 income, not equal to or above it.
+        $this->assertSame(999500, $netAvailable);
     }
 
     public function test_savings_total_only_counts_savings_oriented_providers(): void

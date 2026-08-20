@@ -25,11 +25,12 @@ trait CreatesFinanceFixtures
         string $name = 'M-Pesa',
         FinancialAccountProvider $provider = FinancialAccountProvider::MPESA,
         string $currency = 'KES',
+        LedgerAccountType $type = LedgerAccountType::ASSET,
     ): FinancialAccount {
         $ledgerAccount = LedgerAccount::create([
             'user_id' => $user->id,
             'name' => $name,
-            'type' => LedgerAccountType::ASSET,
+            'type' => $type,
             'currency' => $currency,
         ]);
 

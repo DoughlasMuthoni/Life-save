@@ -118,11 +118,24 @@ class FinancialReportingService
             ]);
     }
 
+    /**
+     * Sums every ASSET account's balance and subtracts every LIABILITY
+     * account's balance (e.g. an outstanding Fuliza overdraft) — a
+     * liability's balanceMinor() is already a positive "how much is
+     * owed" figure (its own normal/credit side), so naively summing it
+     * alongside asset balances would add debt to your available cash
+     * instead of subtracting it.
+     */
     public function netAvailableCashMinor(User $user, SavingsAllocationService $allocations): int
     {
-        $accounts = FinancialAccount::query()->where('user_id', $user->id)->where('is_active', true)->get();
+        $accounts = FinancialAccount::query()->where('user_id', $user->id)->where('is_active', true)->with('ledgerAccount')->get();
 
-        $totalBalance = $accounts->sum(fn (FinancialAccount $a) => $a->balanceMinor());
+        $totalBalance = $accounts->sum(function (FinancialAccount $a) {
+            return $a->ledgerAccount->type === LedgerAccountType::LIABILITY
+                ? -$a->balanceMinor()
+                : $a->balanceMinor();
+        });
+
         $totalAllocated = $accounts->sum(fn (FinancialAccount $a) => $allocations->totalAllocatedForAccount($a));
 
         return (int) $totalBalance - (int) $totalAllocated;

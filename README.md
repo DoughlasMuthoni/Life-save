@@ -29,7 +29,9 @@ The sidebar is grouped by what you're doing, top to bottom:
     until you confirm it. Possible duplicates are flagged separately for a second look.
   - **Accounts** / **Categories** — set these up first: your real accounts (M-Pesa, M-Shwari,
     bank, cash) and your income/expense categories. SMS parsing and manual entry both need
-    these to exist.
+    these to exist. Most accounts are **Assets** (money you have); a debt like Fuliza should
+    be added as a **Liability** instead — the toggle is on the "Add account" form, and a
+    liability's balance is what you *owe*, shown separately from your available cash.
   - **Transactions** — the full ledger history, newest first, with a Reverse action on
     anything that needs correcting (this posts an offsetting entry — it never deletes or edits
     the original).
@@ -108,6 +110,19 @@ in place (`Journal` allows exactly two fields to change post-creation: `is_rever
 wraps a `LedgerAccount` (the actual ledger node its postings hit) plus `TransactionCategory`
 (income/expense categories) and `BalanceObservation` (an SMS-reported balance, stored as a
 data point to reconcile against — never used to overwrite a balance directly).
+
+**Liabilities** (e.g. Fuliza): `FinancialAccountService::createAccount()` defaults to an ASSET
+ledger account but accepts `type: LedgerAccountType::LIABILITY` for money you owe rather than
+have — the Accounts page has an Asset/Liability toggle when adding one. `LedgerAccount`'s
+balance math (`balanceMinor()`) is already fully generic across all five classical account
+types (it derives the normal balance side from `LedgerAccountType`, not from any
+asset-specific assumption), so this needed no ledger-core changes — only
+`FinancialReportingService::netAvailableCashMinor()` needed a fix, since naively summing a
+liability's balance alongside asset balances would have added debt to "available cash"
+instead of subtracting it. A Fuliza drawdown SMS parses deterministically
+(`MpesaParser::parseFuliza()`) into a transfer-shaped proposal — the liability is credited
+(increases) and the M-Pesa account is debited (increases) by the borrowed amount, with the
+access fee posting as a real expense, exactly like any other transfer with a fee.
 
 **Services:**
 - `LedgerService::postJournal()` — the only path anything uses to write to the ledger; wraps

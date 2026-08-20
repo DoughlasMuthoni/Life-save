@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\Finance\Enums\FinancialAccountProvider;
+use App\Domain\Finance\Enums\LedgerAccountType;
 use App\Domain\Finance\Models\FinancialAccount;
 use App\Domain\Finance\Services\FinancialAccountService;
 use App\Domain\Finance\Support\Money;
@@ -17,6 +18,8 @@ new #[Layout('layouts.authenticated')] class extends Component
 
     public string $accountIdentifier = '';
 
+    public string $accountType = 'asset';
+
     public bool $showForm = false;
 
     public function providers(): array
@@ -28,6 +31,7 @@ new #[Layout('layouts.authenticated')] class extends Component
     {
         return FinancialAccount::query()
             ->where('user_id', auth()->id())
+            ->with('ledgerAccount')
             ->latest()
             ->get();
     }
@@ -39,6 +43,7 @@ new #[Layout('layouts.authenticated')] class extends Component
             'provider' => ['required', 'string', 'in:'.implode(',', array_map(fn ($c) => $c->value, FinancialAccountProvider::cases()))],
             'currency' => ['required', 'string', 'size:3'],
             'accountIdentifier' => ['nullable', 'string', 'max:255'],
+            'accountType' => ['required', 'string', 'in:asset,liability'],
         ]);
 
         $accounts->createAccount(
@@ -47,10 +52,12 @@ new #[Layout('layouts.authenticated')] class extends Component
             provider: FinancialAccountProvider::from($this->provider),
             currency: strtoupper($this->currency),
             accountIdentifier: $this->accountIdentifier ?: null,
+            type: $this->accountType === 'liability' ? LedgerAccountType::LIABILITY : LedgerAccountType::ASSET,
         );
 
         $this->reset(['name', 'provider', 'accountIdentifier']);
         $this->currency = 'KES';
+        $this->accountType = 'asset';
         $this->showForm = false;
     }
 
@@ -61,6 +68,7 @@ new #[Layout('layouts.authenticated')] class extends Component
             FinancialAccountProvider::MSHWARI => 'flag',
             FinancialAccountProvider::BANK => 'bank',
             FinancialAccountProvider::CASH => 'cash',
+            FinancialAccountProvider::FULIZA => 'warning',
             FinancialAccountProvider::OTHER => 'wallet',
         };
     }
@@ -73,6 +81,7 @@ new #[Layout('layouts.authenticated')] class extends Component
             FinancialAccountProvider::MSHWARI => 'purple',
             FinancialAccountProvider::BANK => 'amber',
             FinancialAccountProvider::CASH => 'slate',
+            FinancialAccountProvider::FULIZA => 'red',
             FinancialAccountProvider::OTHER => 'slate',
         };
     }
@@ -116,6 +125,20 @@ new #[Layout('layouts.authenticated')] class extends Component
                     <input wire:model="accountIdentifier" type="text" class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
                     @error('accountIdentifier') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                 </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-medium text-slate-700">Type</label>
+                    <div class="mt-1 flex gap-4">
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input wire:model="accountType" type="radio" value="asset" class="border-slate-300 text-blue-600 focus:ring-blue-500">
+                            Asset <span class="text-slate-400">— money you have</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-sm text-slate-700">
+                            <input wire:model="accountType" type="radio" value="liability" class="border-slate-300 text-blue-600 focus:ring-blue-500">
+                            Liability <span class="text-slate-400">— money you owe (e.g. Fuliza)</span>
+                        </label>
+                    </div>
+                    @error('accountType') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                </div>
             </div>
             <div class="flex gap-3">
                 <x-ui.button type="submit" variant="primary">Save account</x-ui.button>
@@ -130,17 +153,28 @@ new #[Layout('layouts.authenticated')] class extends Component
         <div class="mt-6 divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
             @foreach ($this->accounts as $account)
                 @php
-                    $colorClasses = ['green' => 'bg-green-50 text-green-600', 'blue' => 'bg-blue-50 text-blue-600', 'purple' => 'bg-purple-50 text-purple-600', 'amber' => 'bg-amber-50 text-amber-600', 'slate' => 'bg-slate-100 text-slate-600'][$this->providerColor($account->provider)];
+                    $colorClasses = ['green' => 'bg-green-50 text-green-600', 'blue' => 'bg-blue-50 text-blue-600', 'purple' => 'bg-purple-50 text-purple-600', 'amber' => 'bg-amber-50 text-amber-600', 'slate' => 'bg-slate-100 text-slate-600', 'red' => 'bg-red-50 text-red-600'][$this->providerColor($account->provider)];
+                    $isLiability = $account->ledgerAccount->type === LedgerAccountType::LIABILITY;
                 @endphp
                 <div class="flex items-center gap-4 px-6 py-4">
                     <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full {{ $colorClasses }}">
                         <x-icon :name="$this->providerIcon($account->provider)" class="h-5 w-5" />
                     </span>
                     <div class="min-w-0 flex-1">
-                        <p class="font-medium text-slate-900">{{ $account->name }}</p>
+                        <div class="flex items-center gap-2">
+                            <p class="font-medium text-slate-900">{{ $account->name }}</p>
+                            @if ($isLiability)
+                                <x-ui.badge color="red">Liability</x-ui.badge>
+                            @endif
+                        </div>
                         <p class="text-sm text-slate-500">{{ ucwords(str_replace('_', ' ', $account->provider->value)) }} &middot; {{ $account->currency }}</p>
                     </div>
-                    <p class="shrink-0 text-lg font-semibold text-slate-900">{{ Money::formatMinor($account->balanceMinor(), $account->currency) }}</p>
+                    <div class="shrink-0 text-right">
+                        <p class="text-lg font-semibold {{ $isLiability ? 'text-red-600' : 'text-slate-900' }}">{{ Money::formatMinor($account->balanceMinor(), $account->currency) }}</p>
+                        @if ($isLiability)
+                            <p class="text-xs text-red-500">owed</p>
+                        @endif
+                    </div>
                 </div>
             @endforeach
         </div>

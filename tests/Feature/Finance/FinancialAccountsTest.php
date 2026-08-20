@@ -4,6 +4,8 @@ namespace Tests\Feature\Finance;
 
 use App\Domain\Audit\Enums\AuditAction;
 use App\Domain\Finance\Enums\FinancialAccountProvider;
+use App\Domain\Finance\Enums\LedgerAccountType;
+use App\Domain\Finance\Models\FinancialAccount;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -35,6 +37,24 @@ class FinancialAccountsTest extends TestCase
             'user_id' => $user->id,
             'action' => AuditAction::FINANCIAL_ACCOUNT_CREATED->value,
         ]);
+    }
+
+    public function test_a_user_can_create_a_liability_account_through_the_ui(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test('finance.accounts')
+            ->set('name', 'Fuliza')
+            ->set('provider', FinancialAccountProvider::FULIZA->value)
+            ->set('accountType', 'liability')
+            ->call('create')
+            ->assertHasNoErrors()
+            ->assertSee('Fuliza')
+            ->assertSee('Liability');
+
+        $account = FinancialAccount::where('user_id', $user->id)->where('name', 'Fuliza')->firstOrFail();
+        $this->assertSame(LedgerAccountType::LIABILITY, $account->ledgerAccount->type);
     }
 
     public function test_the_account_form_requires_a_name_and_provider(): void

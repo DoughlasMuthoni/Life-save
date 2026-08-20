@@ -12,11 +12,12 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Onboards a real-world account: one ASSET ledger_account plus the
- * financial_accounts row carrying its human-facing metadata. Kept as its
- * own service (rather than inline in a Livewire component) so account
- * creation stays testable and consistent regardless of which screen
- * triggers it later.
+ * Onboards a real-world account: one ledger_account (ASSET by default —
+ * e.g. M-Pesa, a bank account; LIABILITY for something you owe, like a
+ * Fuliza overdraft) plus the financial_accounts row carrying its
+ * human-facing metadata. Kept as its own service (rather than inline in a
+ * Livewire component) so account creation stays testable and consistent
+ * regardless of which screen triggers it later.
  */
 class FinancialAccountService
 {
@@ -28,12 +29,13 @@ class FinancialAccountService
         FinancialAccountProvider $provider,
         string $currency = 'KES',
         ?string $accountIdentifier = null,
+        LedgerAccountType $type = LedgerAccountType::ASSET,
     ): FinancialAccount {
-        return DB::transaction(function () use ($user, $name, $provider, $currency, $accountIdentifier) {
+        return DB::transaction(function () use ($user, $name, $provider, $currency, $accountIdentifier, $type) {
             $ledgerAccount = LedgerAccount::create([
                 'user_id' => $user->id,
                 'name' => $name,
-                'type' => LedgerAccountType::ASSET,
+                'type' => $type,
                 'currency' => $currency,
             ]);
 
@@ -50,6 +52,7 @@ class FinancialAccountService
                 'name' => $name,
                 'provider' => $provider->value,
                 'currency' => $currency,
+                'type' => $type->value,
             ]);
 
             return $account;

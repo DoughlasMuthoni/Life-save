@@ -99,15 +99,14 @@ class FinancialMessageIngestionService
             /** @var ParsedMessage $parsed */
             $parsed = $extraction['parsed'];
             $shape = $parsed->transactionType->shape();
+            [$financialAccountId, $destinationFinancialAccountId] = $this->resolveAccountGuesses($user, $provider, $parsed, $shape);
 
             ProposedTransaction::create([
                 'financial_message_id' => $message->id,
                 'user_id' => $user->id,
                 'transaction_type' => $parsed->transactionType,
-                'financial_account_id' => $this->guessAccount($user, $this->mapToFinancialAccountProvider($provider)),
-                'destination_financial_account_id' => $shape === TransactionShape::TRANSFER
-                    ? $this->guessAccount($user, FinancialAccountProvider::CASH)
-                    : null,
+                'financial_account_id' => $financialAccountId,
+                'destination_financial_account_id' => $destinationFinancialAccountId,
                 'amount_minor' => $parsed->amountMinor,
                 'fee_minor' => $parsed->feeMinor,
                 'currency' => 'KES',
@@ -312,5 +311,28 @@ class FinancialMessageIngestionService
             ->get();
 
         return $accounts->count() === 1 ? $accounts->first()->id : null;
+    }
+
+    /**
+     * @return array{0: ?int, 1: ?int} [financial_account_id, destination_financial_account_id]
+     */
+    private function resolveAccountGuesses(User $user, MessageProvider $provider, ParsedMessage $parsed, TransactionShape $shape): array
+    {
+        // A Fuliza drawdown runs the other way round from every other
+        // transfer-shaped message: the source is the Fuliza liability
+        // (which increases — you owe more), the destination is the M-Pesa
+        // account the borrowed funds land in. Every other pattern treats
+        // the detected message provider as the source account.
+        if ($parsed->transactionType === ExtractedTransactionType::FULIZA_DRAWDOWN) {
+            return [
+                $this->guessAccount($user, FinancialAccountProvider::FULIZA),
+                $this->guessAccount($user, $this->mapToFinancialAccountProvider($provider)),
+            ];
+        }
+
+        return [
+            $this->guessAccount($user, $this->mapToFinancialAccountProvider($provider)),
+            $shape === TransactionShape::TRANSFER ? $this->guessAccount($user, FinancialAccountProvider::CASH) : null,
+        ];
     }
 }

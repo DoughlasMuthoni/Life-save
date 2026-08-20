@@ -27,7 +27,8 @@ class MpesaParser
             ?? $this->parseBuyGoods($normalizedText)
             ?? $this->parseSendMoney($normalizedText)
             ?? $this->parseReceiveMoney($normalizedText)
-            ?? $this->parseWithdrawal($normalizedText);
+            ?? $this->parseWithdrawal($normalizedText)
+            ?? $this->parseFuliza($normalizedText);
     }
 
     private function parseSendMoney(string $text): ?ParsedMessage
@@ -132,6 +133,38 @@ class MpesaParser
             externalTransactionId: $this->extractTransactionCode($text),
             counterparty: trim($m['agent']),
             reportedBalanceMinor: Money::toMinorUnits($m['balance']),
+        );
+    }
+
+    /**
+     * A Fuliza drawdown notification. Unlike every other pattern this
+     * parser recognizes, the SMS carries no transaction date/time — only
+     * a future repayment due date — so transactionTime falls back to
+     * "now" (when the message is parsed). In practice that's fine, since
+     * Fuliza SMS are pasted in shortly after arriving, but it's a real
+     * gap worth knowing about rather than a silent guess dressed up as
+     * fact. The due date is folded into `counterparty` (there's no
+     * dedicated field for it) so it's still visible on the proposal card
+     * and in the transaction list.
+     */
+    private function parseFuliza(string $text): ?ParsedMessage
+    {
+        if (! preg_match(
+            '/Fuliza M-PESA amount is\s+Ksh\s*(?<amount>[\d,]+\.\d{2})\.\s*Access Fee charged\s+Ksh\s*(?<fee>[\d,]+\.\d{2})\.\s*Total Fuliza M-PESA outstanding amount is\s+Ksh\s*(?<outstanding>[\d,]+\.\d{2})\s+due on\s+(?<duedate>\d{1,2}\/\d{1,2}\/\d{2,4})/i',
+            $text,
+            $m
+        )) {
+            return null;
+        }
+
+        return new ParsedMessage(
+            transactionType: ExtractedTransactionType::FULIZA_DRAWDOWN,
+            amountMinor: Money::toMinorUnits($m['amount']),
+            feeMinor: Money::toMinorUnits($m['fee']),
+            transactionTime: CarbonImmutable::now(),
+            externalTransactionId: $this->extractTransactionCode($text),
+            counterparty: 'Fuliza (due '.$m['duedate'].')',
+            reportedBalanceMinor: Money::toMinorUnits($m['outstanding']),
         );
     }
 
