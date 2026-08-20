@@ -12,6 +12,7 @@ use App\Domain\Ingestion\Models\ProposedTransaction;
 use App\Domain\Ingestion\Services\FinancialMessageIngestionService;
 use App\Domain\Ingestion\Services\ProposedTransactionConfirmationService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -90,9 +91,26 @@ new #[Layout('layouts.authenticated')] class extends Component
         }
     }
 
+    /**
+     * Rate limited per user (CLAUDE.md §12) — a batch can trigger several
+     * Claude API calls (one per pasted message that needs the AI
+     * fallback), so unlimited rapid resubmission isn't free.
+     */
     public function parseMessages(FinancialMessageIngestionService $ingestion): void
     {
         $this->validate(['pasteText' => ['required', 'string', 'min:5']]);
+
+        $throttleKey = 'parse-messages:'.auth()->id();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 10)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+
+            throw ValidationException::withMessages([
+                'pasteText' => "Too many submissions in a short time. Please try again in {$seconds} seconds.",
+            ]);
+        }
+
+        RateLimiter::hit($throttleKey, 60);
 
         $messages = $ingestion->ingestBatch(auth()->user(), $this->pasteText);
 

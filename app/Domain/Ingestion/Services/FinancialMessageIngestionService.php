@@ -3,11 +3,13 @@
 namespace App\Domain\Ingestion\Services;
 
 use App\Domain\AI\Contracts\AIProviderInterface;
+use App\Domain\AI\DataTransferObjects\AiExtractedTransaction;
 use App\Domain\Audit\Enums\AuditAction;
 use App\Domain\Audit\Services\AuditLogger;
 use App\Domain\Finance\Enums\FinancialAccountProvider;
 use App\Domain\Finance\Models\FinancialAccount;
 use App\Domain\Ingestion\DataTransferObjects\ParsedMessage;
+use App\Domain\Ingestion\Enums\ExtractedTransactionType;
 use App\Domain\Ingestion\Enums\MessageProvider;
 use App\Domain\Ingestion\Enums\ParseStatus;
 use App\Domain\Ingestion\Enums\ProposedTransactionStatus;
@@ -17,7 +19,9 @@ use App\Domain\Ingestion\Models\ProposedTransaction;
 use App\Domain\Ingestion\Parsers\BankSmsParser;
 use App\Domain\Ingestion\Parsers\MpesaParser;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -61,7 +65,7 @@ class FinancialMessageIngestionService
         $hash = hash('sha256', $normalized);
         $provider = $this->providerDetector->detect($normalized);
 
-        ['extraction' => $extraction, 'aiRejected' => $aiRejected] = $this->extract($normalized, $provider);
+        ['extraction' => $extraction, 'aiRejected' => $aiRejected] = $this->extract($normalized, $provider, $hash);
 
         // Must run BEFORE the message is inserted — otherwise the hash
         // lookup below would match the row we're about to create and every
@@ -140,7 +144,7 @@ class FinancialMessageIngestionService
     /**
      * @return array{extraction: array{parsed: ParsedMessage, parserType: string, parserVersion: string, confidence: int, fieldVerification: ?array}|null, aiRejected: bool}
      */
-    private function extract(string $normalized, MessageProvider $provider): array
+    private function extract(string $normalized, MessageProvider $provider, string $hash): array
     {
         $deterministic = match ($provider) {
             MessageProvider::MPESA => $this->mpesaParser->parse($normalized),
@@ -163,7 +167,7 @@ class FinancialMessageIngestionService
             ];
         }
 
-        $aiCandidate = $this->aiProvider->parseFinancialMessage($normalized);
+        $aiCandidate = $this->cachedAiParse($normalized, $hash);
 
         if ($aiCandidate === null) {
             // No opinion from the AI at all (network/provider failure, or it
@@ -199,6 +203,84 @@ class FinancialMessageIngestionService
             ],
             'aiRejected' => false,
         ];
+    }
+
+    /**
+     * Caches the AI's verdict for a given normalized message text (byte-
+     * identical re-pastes are common — an accidental double-submit, or a
+     * message copied twice from the phone's SMS app) so an identical
+     * message never pays for a second Claude API call.
+     *
+     * The AI's answer is nullable ("this isn't a financial transaction"
+     * is a legitimate, meaningful null), so the raw result can't be cached
+     * with Cache::remember() directly — Laravel's remember() treats a
+     * stored null exactly like a cache miss and would call the provider
+     * again every time. Wrapping it in a single-key array keeps the cache
+     * entry itself always non-null.
+     *
+     * AiExtractedTransaction is a `readonly` DTO — PHP's native
+     * serialize()/unserialize() (what the database cache store uses)
+     * cannot reconstruct readonly properties set outside the constructor
+     * and silently degrades to __PHP_Incomplete_Class instead of erroring.
+     * Confirmed against a real cache round-trip, not assumed. So the DTO
+     * is broken down into plain, safely-serializable primitives before
+     * caching and rebuilt through its constructor on a hit.
+     */
+    private function cachedAiParse(string $normalized, string $hash): ?AiExtractedTransaction
+    {
+        $cacheKey = "ai_sms_parse:{$hash}";
+
+        $cached = Cache::get($cacheKey);
+
+        if ($cached !== null) {
+            return $cached['candidate'] === null ? null : $this->hydrateCachedCandidate($cached['candidate']);
+        }
+
+        $candidate = $this->aiProvider->parseFinancialMessage($normalized);
+
+        Cache::put($cacheKey, [
+            'candidate' => $candidate === null ? null : $this->dehydrateCandidate($candidate),
+        ], now()->addDay());
+
+        return $candidate;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dehydrateCandidate(AiExtractedTransaction $candidate): array
+    {
+        return [
+            'isFinancialTransaction' => $candidate->isFinancialTransaction,
+            'transactionType' => $candidate->transactionType?->value,
+            'amountMinor' => $candidate->amountMinor,
+            'feeMinor' => $candidate->feeMinor,
+            'transactionTime' => $candidate->transactionTime?->toIso8601String(),
+            'externalTransactionId' => $candidate->externalTransactionId,
+            'counterparty' => $candidate->counterparty,
+            'reportedBalanceMinor' => $candidate->reportedBalanceMinor,
+            'confidence' => $candidate->confidence,
+            'uncertainFields' => $candidate->uncertainFields,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function hydrateCachedCandidate(array $data): AiExtractedTransaction
+    {
+        return new AiExtractedTransaction(
+            isFinancialTransaction: $data['isFinancialTransaction'],
+            transactionType: $data['transactionType'] !== null ? ExtractedTransactionType::from($data['transactionType']) : null,
+            amountMinor: $data['amountMinor'],
+            feeMinor: $data['feeMinor'],
+            transactionTime: $data['transactionTime'] !== null ? CarbonImmutable::parse($data['transactionTime']) : null,
+            externalTransactionId: $data['externalTransactionId'],
+            counterparty: $data['counterparty'],
+            reportedBalanceMinor: $data['reportedBalanceMinor'],
+            confidence: $data['confidence'],
+            uncertainFields: $data['uncertainFields'],
+        );
     }
 
     private function mapToFinancialAccountProvider(MessageProvider $provider): ?FinancialAccountProvider

@@ -19,6 +19,13 @@ use App\Domain\AI\DataTransferObjects\AiExtractedTransaction;
  */
 class FakeAIProvider implements AIProviderInterface
 {
+    /**
+     * How many times parseFinancialMessage() has actually been invoked —
+     * lets tests prove a caching layer prevented a redundant call, not
+     * just that the eventual result was correct.
+     */
+    public int $parseCallCount = 0;
+
     public function __construct(
         private readonly ?AiExtractedTransaction $parseResponse = null,
         private readonly string $answerQuestionResponse = 'This is a fake AI response.',
@@ -26,6 +33,8 @@ class FakeAIProvider implements AIProviderInterface
 
     public function parseFinancialMessage(string $normalizedText): ?AiExtractedTransaction
     {
+        $this->parseCallCount++;
+
         return $this->parseResponse;
     }
 

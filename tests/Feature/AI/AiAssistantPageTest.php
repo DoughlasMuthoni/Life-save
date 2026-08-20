@@ -44,4 +44,17 @@ class AiAssistantPageTest extends TestCase
             ->call('askSuggested', 'Where did most of my money go this month?')
             ->assertSee('Where did most of my money go this month?');
     }
+
+    public function test_asking_too_many_questions_in_a_short_time_is_rate_limited(): void
+    {
+        $user = User::factory()->create();
+
+        $component = Livewire::actingAs($user)->test('ai-assistant');
+
+        for ($i = 0; $i < 20; $i++) {
+            $component->set('question', "Question {$i}")->call('ask')->assertHasNoErrors();
+        }
+
+        $component->set('question', 'One question too many')->call('ask')->assertHasErrors(['question']);
+    }
 }

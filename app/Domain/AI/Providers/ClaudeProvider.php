@@ -123,7 +123,17 @@ class ClaudeProvider implements AIProviderInterface
                 maxTokens: 2048,
                 messages: [['role' => 'user', 'content' => $question]],
                 tools: $runnableTools,
-                extraParams: ['system' => self::ASSISTANT_SYSTEM_PROMPT],
+                // The system prompt (and the 7 tool schemas rendered ahead
+                // of it) are byte-identical on every call, for every
+                // question, for every user — a textbook prompt-caching
+                // prefix. cacheControl on the last (only) system block
+                // caches tools+system together (render order is
+                // tools -> system -> messages), so only the per-question
+                // text at the end is billed at full price after the first
+                // request within the TTL.
+                extraParams: ['system' => [
+                    ['type' => 'text', 'text' => self::ASSISTANT_SYSTEM_PROMPT, 'cacheControl' => ['type' => 'ephemeral']],
+                ]],
             );
 
             $finalText = '';

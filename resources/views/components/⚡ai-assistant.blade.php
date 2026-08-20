@@ -1,6 +1,8 @@
 <?php
 
 use App\Domain\AI\Services\FinancialAssistantService;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -13,9 +15,27 @@ new #[Layout('layouts.authenticated')] class extends Component
 
     public bool $asking = false;
 
+    /**
+     * Rate limited per user (CLAUDE.md §12) — each question is a real,
+     * billed Claude API call (often several, since the tool-runner loop
+     * can take multiple turns), so nothing today stops rapid resubmission
+     * from running up API cost.
+     */
     public function ask(FinancialAssistantService $assistant): void
     {
         $this->validate(['question' => ['required', 'string', 'max:500']]);
+
+        $throttleKey = 'ai-assistant:'.auth()->id();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 20)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+
+            throw ValidationException::withMessages([
+                'question' => "Too many questions in a short time. Please try again in {$seconds} seconds.",
+            ]);
+        }
+
+        RateLimiter::hit($throttleKey, 60);
 
         $question = $this->question;
         $answer = $assistant->answerQuestion(auth()->user(), $question);

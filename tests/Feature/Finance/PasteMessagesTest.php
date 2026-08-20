@@ -105,4 +105,18 @@ class PasteMessagesTest extends TestCase
             ->call('parseMessages')
             ->assertSee('Possible duplicates');
     }
+
+    public function test_submitting_too_many_batches_in_a_short_time_is_rate_limited(): void
+    {
+        $user = User::factory()->create();
+        $this->createFinancialAccount($user, 'M-Pesa', FinancialAccountProvider::MPESA);
+
+        $component = Livewire::actingAs($user)->test('finance.messages.paste');
+
+        for ($i = 0; $i < 10; $i++) {
+            $component->set('pasteText', $this->sendMoneySms())->call('parseMessages')->assertHasNoErrors();
+        }
+
+        $component->set('pasteText', $this->sendMoneySms())->call('parseMessages')->assertHasErrors(['pasteText']);
+    }
 }

@@ -20,9 +20,12 @@ class AiFallbackIngestionTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function bindAi(?AiExtractedTransaction $response): void
+    private function bindAi(?AiExtractedTransaction $response): FakeAIProvider
     {
-        $this->app->instance(AIProviderInterface::class, new FakeAIProvider($response));
+        $fake = new FakeAIProvider($response);
+        $this->app->instance(AIProviderInterface::class, $fake);
+
+        return $fake;
     }
 
     public function test_a_verified_ai_extraction_becomes_a_proposed_transaction(): void
@@ -127,5 +130,64 @@ class AiFallbackIngestionTest extends TestCase
 
         $this->assertSame(ParseStatus::PARSED, $message->parse_status);
         $this->assertSame(MpesaParser::class, $message->parser_type);
+    }
+
+    public function test_pasting_the_identical_message_twice_only_calls_the_ai_provider_once(): void
+    {
+        // Force the real 'database' cache store rather than the test
+        // suite's default 'array' store — array caching never serializes
+        // at all, so it can't catch a value that fails to round-trip
+        // through PHP's actual serialize()/unserialize() (see
+        // FinancialMessageIngestionService::cachedAiParse() — this
+        // exact bug was caught by testing against the database store).
+        config(['cache.default' => 'database']);
+
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $raw = 'Umetuma KES 1,500.00 kwa JOHN MWANGI tarehe 31/5/25 saa 1:41 PM. Salio jipya la M-PESA ni KES 3,450.00.';
+
+        $fake = $this->bindAi(new AiExtractedTransaction(
+            isFinancialTransaction: true,
+            transactionType: ExtractedTransactionType::SEND_MONEY,
+            amountMinor: 150000,
+            feeMinor: 0,
+            transactionTime: CarbonImmutable::create(2025, 5, 31, 13, 41),
+            externalTransactionId: null,
+            counterparty: 'JOHN MWANGI',
+            reportedBalanceMinor: 345000,
+            confidence: 0.9,
+        ));
+
+        $service = app(FinancialMessageIngestionService::class);
+        $first = $service->ingest($user, $raw);
+        $second = $service->ingest($user, $raw.' ');
+
+        $this->assertSame(1, $fake->parseCallCount);
+        $this->assertSame($first->proposedTransaction->amount_minor, $second->proposedTransaction->amount_minor);
+        $this->assertSame($first->proposedTransaction->counterparty, $second->proposedTransaction->counterparty);
+    }
+
+    public function test_pasting_the_identical_non_financial_message_twice_only_calls_the_ai_provider_once(): void
+    {
+        config(['cache.default' => 'database']);
+
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        // A null response ("this isn't a financial transaction") must be
+        // cached too — Laravel's Cache::remember() treats a stored null
+        // exactly like a cache miss, so this specifically guards against
+        // that gotcha silently defeating the cache for every declined
+        // message.
+        $fake = $this->bindAi(null);
+
+        $raw = 'Hey, are we still on for lunch tomorrow?';
+
+        $service = app(FinancialMessageIngestionService::class);
+        $service->ingest($user, $raw);
+        $service->ingest($user, $raw);
+
+        $this->assertSame(1, $fake->parseCallCount);
     }
 }
