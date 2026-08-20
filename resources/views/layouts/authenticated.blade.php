@@ -126,6 +126,8 @@
         </div>
     </div>
 
+    <x-help-panel />
+
     @livewireScripts
 </body>
 </html>
