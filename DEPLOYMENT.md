@@ -10,7 +10,7 @@ SSH or a file manager, a MySQL database, and cron.
 Confirm these before starting — if any are missing, most hosts can still add them, but it's
 worth checking first:
 
-- **PHP 8.3 or newer**, with the extensions Laravel needs: `mbstring`, `openssl`, `pdo_mysql`,
+- **PHP 8.4.1 or newer** (the actual floor — laravel/framework 13.x pulls in Symfony 8.1.x components that require it, even though this wasn't obvious from the top-level composer.json constraint until deploy time), with the extensions Laravel needs: `mbstring`, `openssl`, `pdo_mysql`,
   `tokenizer`, `xml`, `ctype`, `json`, `bcmath`, `fileinfo`, `curl`. Shared hosts usually enable
   all of these by default for a "PHP application" preset.
 - **MySQL 8+** (or MariaDB 10.6+), with a database and a **least-privilege user** created for
