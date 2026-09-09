@@ -36,6 +36,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('finance')->name('finance.')->group(function () {
         Route::livewire('/messages', 'finance.messages.paste')->name('messages');
+        Route::livewire('/statement-import', 'finance.statement-import')->name('statement-import');
         Route::livewire('/accounts', 'finance.accounts')->name('accounts');
         Route::livewire('/categories', 'finance.categories')->name('categories');
         Route::livewire('/transactions', 'finance.transactions')->name('transactions');

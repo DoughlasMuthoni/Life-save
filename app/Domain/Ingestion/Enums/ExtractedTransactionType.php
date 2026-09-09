@@ -17,6 +17,10 @@ enum ExtractedTransactionType: string
     case BANK_CREDIT = 'bank_credit';
     case FULIZA_DRAWDOWN = 'fuliza_drawdown';
     case FULIZA_REPAYMENT = 'fuliza_repayment';
+    case BUNDLE_PURCHASE = 'bundle_purchase';
+    case STATEMENT_FEE = 'statement_fee';
+    case MSHWARI_TRANSFER_IN = 'mshwari_transfer_in';
+    case MSHWARI_TRANSFER_OUT = 'mshwari_transfer_out';
 
     /**
      * The ledger "shape" this transaction type must be posted as. A cash
@@ -35,13 +39,21 @@ enum ExtractedTransactionType: string
      * A Fuliza repayment is the same shape run the other way: M-Pesa
      * decreases (credited), Fuliza decreases (debited) — ordinary
      * TransferService semantics for a liability being paid down.
+     *
+     * From the M-Pesa statement (MpesaStatementParser): a bundle purchase
+     * and a standalone fee row (a "...Charge" line — statements list the
+     * fee as its own row rather than folding it inline like SMS does) are
+     * both plain expenses. An M-Shwari transfer is a TRANSFER exactly like
+     * a withdrawal — money moving between two of the user's own real
+     * accounts — just in either direction depending on which statement
+     * row it is.
      */
     public function shape(): TransactionShape
     {
         return match ($this) {
             self::RECEIVE_MONEY, self::BANK_CREDIT => TransactionShape::INCOME,
-            self::SEND_MONEY, self::BUY_GOODS, self::PAYBILL, self::BANK_DEBIT => TransactionShape::EXPENSE,
-            self::WITHDRAWAL, self::FULIZA_DRAWDOWN, self::FULIZA_REPAYMENT => TransactionShape::TRANSFER,
+            self::SEND_MONEY, self::BUY_GOODS, self::PAYBILL, self::BANK_DEBIT, self::BUNDLE_PURCHASE, self::STATEMENT_FEE => TransactionShape::EXPENSE,
+            self::WITHDRAWAL, self::FULIZA_DRAWDOWN, self::FULIZA_REPAYMENT, self::MSHWARI_TRANSFER_IN, self::MSHWARI_TRANSFER_OUT => TransactionShape::TRANSFER,
         };
     }
 }

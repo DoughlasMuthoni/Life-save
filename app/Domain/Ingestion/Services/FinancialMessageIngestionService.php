@@ -18,6 +18,7 @@ use App\Domain\Ingestion\Models\FinancialMessage;
 use App\Domain\Ingestion\Models\ProposedTransaction;
 use App\Domain\Ingestion\Parsers\BankSmsParser;
 use App\Domain\Ingestion\Parsers\MpesaParser;
+use App\Domain\Ingestion\Parsers\MpesaStatementParser;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -43,6 +44,7 @@ class FinancialMessageIngestionService
         private readonly TextNormalizer $normalizer,
         private readonly ProviderDetector $providerDetector,
         private readonly MpesaParser $mpesaParser,
+        private readonly MpesaStatementParser $mpesaStatementParser,
         private readonly BankSmsParser $bankSmsParser,
         private readonly AIProviderInterface $aiProvider,
         private readonly AiExtractionValidator $aiValidator,
@@ -59,13 +61,42 @@ class FinancialMessageIngestionService
             ->map(fn (string $rawText) => $this->ingest($user, $rawText));
     }
 
-    public function ingest(User $user, string $rawText): FinancialMessage
+    /**
+     * Same pipeline as ingestBatch(), just split differently: a pasted
+     * M-Pesa statement isn't blank-line-separated messages, it's one
+     * continuous table where each transaction is a row (often wrapping
+     * onto several lines). Every row still goes through the exact same
+     * ingest() — parse, validate, duplicate-check, propose, wait for
+     * confirmation — nothing about the posting path changes for
+     * statement-derived data (CLAUDE.md §7 applies identically).
+     *
+     * AI fallback is deliberately skipped here (allowAiFallback: false):
+     * a real statement can be hundreds of rows in one paste, and roughly
+     * a third of real-world rows don't match this first pass's
+     * deterministic shapes — letting each of those trigger a live Claude
+     * API call inside one synchronous request would mean potentially
+     * hundreds of sequential AI calls before the page responds, with
+     * real timeout risk on shared hosting and real API cost for a single
+     * paste. Unmatched rows are still stored as NEEDS_REVIEW evidence,
+     * same as always — nothing is silently dropped, they just don't get
+     * an AI-derived proposal automatically. A future pass could revisit
+     * this once the common-shapes coverage is wider.
+     *
+     * @return Collection<int, FinancialMessage>
+     */
+    public function ingestStatementBatch(User $user, string $pastedStatementText): Collection
+    {
+        return collect($this->mpesaStatementParser->splitRows($pastedStatementText))
+            ->map(fn (string $rawRow) => $this->ingest($user, $rawRow, allowAiFallback: false));
+    }
+
+    public function ingest(User $user, string $rawText, bool $allowAiFallback = true): FinancialMessage
     {
         $normalized = $this->normalizer->normalize($rawText);
         $hash = hash('sha256', $normalized);
         $provider = $this->providerDetector->detect($normalized);
 
-        ['extraction' => $extraction, 'aiRejected' => $aiRejected] = $this->extract($normalized, $provider, $hash);
+        ['extraction' => $extraction, 'aiRejected' => $aiRejected] = $this->extract($normalized, $provider, $hash, $allowAiFallback);
 
         // Must run BEFORE the message is inserted — otherwise the hash
         // lookup below would match the row we're about to create and every
@@ -143,27 +174,37 @@ class FinancialMessageIngestionService
     /**
      * @return array{extraction: array{parsed: ParsedMessage, parserType: string, parserVersion: string, confidence: int, fieldVerification: ?array}|null, aiRejected: bool}
      */
-    private function extract(string $normalized, MessageProvider $provider, string $hash): array
+    private function extract(string $normalized, MessageProvider $provider, string $hash, bool $allowAiFallback = true): array
     {
-        $deterministic = match ($provider) {
-            MessageProvider::MPESA => $this->mpesaParser->parse($normalized),
-            MessageProvider::BANK => $this->bankSmsParser->parse($normalized),
+        // M-Pesa messages can deterministically match one of two shapes —
+        // a regular SMS (MpesaParser) or a pasted statement row
+        // (MpesaStatementParser) — so, unlike the other providers, which
+        // parser actually matched has to be tracked explicitly rather
+        // than assumed from the provider alone (needed for parser_type/
+        // parser_version traceability, CLAUDE.md §13).
+        [$deterministic, $parserClass, $parserVersion] = match ($provider) {
+            MessageProvider::MPESA => $this->extractMpesa($normalized),
+            MessageProvider::BANK => [$this->bankSmsParser->parse($normalized), BankSmsParser::class, BankSmsParser::VERSION],
             // M-Shwari and KCB M-Pesa don't have dedicated deterministic
             // parsers yet — they fall through to the AI fallback below.
-            default => null,
+            default => [null, null, null],
         };
 
         if ($deterministic !== null) {
             return [
                 'extraction' => [
                     'parsed' => $deterministic,
-                    'parserType' => $provider === MessageProvider::MPESA ? MpesaParser::class : BankSmsParser::class,
-                    'parserVersion' => $provider === MessageProvider::MPESA ? MpesaParser::VERSION : BankSmsParser::VERSION,
+                    'parserType' => $parserClass,
+                    'parserVersion' => $parserVersion,
                     'confidence' => 100,
                     'fieldVerification' => null,
                 ],
                 'aiRejected' => false,
             ];
+        }
+
+        if (! $allowAiFallback) {
+            return ['extraction' => null, 'aiRejected' => false];
         }
 
         $aiCandidate = $this->cachedAiParse($normalized, $hash);
@@ -202,6 +243,22 @@ class FinancialMessageIngestionService
             ],
             'aiRejected' => false,
         ];
+    }
+
+    /**
+     * @return array{0: ?ParsedMessage, 1: ?string, 2: ?string}
+     */
+    private function extractMpesa(string $normalized): array
+    {
+        if (($parsed = $this->mpesaParser->parse($normalized)) !== null) {
+            return [$parsed, MpesaParser::class, MpesaParser::VERSION];
+        }
+
+        if (($parsed = $this->mpesaStatementParser->parse($normalized)) !== null) {
+            return [$parsed, MpesaStatementParser::class, MpesaStatementParser::VERSION];
+        }
+
+        return [null, null, null];
     }
 
     /**

@@ -29,6 +29,7 @@
             ],
             'Finance' => [
                 ['finance.messages', 'chat', 'Messages'],
+                ['finance.statement-import', 'document-text', 'Import Statement'],
                 ['finance.accounts', 'wallet', 'Accounts'],
                 ['finance.categories', 'tag', 'Categories'],
                 ['finance.transactions', 'list', 'Transactions'],
