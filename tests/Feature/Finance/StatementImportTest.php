@@ -3,6 +3,8 @@
 namespace Tests\Feature\Finance;
 
 use App\Domain\AI\Contracts\AIProviderInterface;
+use App\Domain\Audit\Enums\AuditAction;
+use App\Domain\Audit\Models\AuditEvent;
 use App\Domain\Ingestion\Enums\ExtractedTransactionType;
 use App\Domain\Ingestion\Enums\ParseStatus;
 use App\Domain\Ingestion\Enums\ProposedTransactionStatus;
@@ -11,9 +13,11 @@ use App\Domain\Ingestion\Services\FinancialMessageIngestionService;
 use App\Domain\Ingestion\Services\ProposedTransactionConfirmationService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Tests\Support\CreatesFinanceFixtures;
 use Tests\Support\FakeAIProvider;
+use Tests\Support\PdfFixtureBuilder;
 use Tests\TestCase;
 
 class StatementImportTest extends TestCase
@@ -156,5 +160,81 @@ class StatementImportTest extends TestCase
 
         $this->assertTrue($messages->every(fn ($m) => $m->parser_type === MpesaStatementParser::class));
         $this->assertTrue($messages->every(fn ($m) => $m->parser_version === MpesaStatementParser::VERSION));
+    }
+
+    private function samplePdfUpload(string $originalName = 'statement.pdf'): UploadedFile
+    {
+        $path = PdfFixtureBuilder::sampleStatementPdf();
+
+        try {
+            return UploadedFile::fake()->createWithContent($originalName, file_get_contents($path));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_uploading_a_statement_pdf_imports_it_via_the_same_pipeline_as_paste(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test('finance.statement-import')
+            ->set('statementFile', $this->samplePdfUpload())
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertSee('Rows found')
+            ->assertSee('1');
+
+        // CLAUDE.md §7a: parser_type must be recorded exactly as it is
+        // for a paste — the PDF is only a different way of getting text
+        // into the identical MpesaStatementParser / ingest pipeline.
+        $this->assertDatabaseHas('financial_messages', [
+            'user_id' => $user->id,
+            'parser_type' => MpesaStatementParser::class,
+        ]);
+    }
+
+    public function test_uploading_a_statement_pdf_records_an_audit_event_without_logging_extracted_text(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test('finance.statement-import')
+            ->set('statementFile', $this->samplePdfUpload('my-mpesa-statement.pdf'))
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $event = AuditEvent::where('action', AuditAction::STATEMENT_PDF_IMPORTED)->first();
+
+        $this->assertNotNull($event);
+        $this->assertSame('my-mpesa-statement.pdf', $event->data['filename']);
+        $this->assertSame(1, $event->data['rows_found']);
+        // The extracted statement text (receipt numbers, names, amounts)
+        // must never end up in the audit trail — only counts/metadata.
+        $this->assertStringNotContainsString('JANE SAMPLE', json_encode($event->data));
+    }
+
+    public function test_uploading_a_non_pdf_file_is_rejected_with_a_helpful_message(): void
+    {
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->createWithContent('fake.pdf', 'just some text, not a real pdf');
+
+        Livewire::actingAs($user)
+            ->test('finance.statement-import')
+            ->set('statementFile', $file)
+            ->call('import')
+            ->assertHasErrors(['statementFile']);
+    }
+
+    public function test_neither_pasting_nor_uploading_anything_is_rejected(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test('finance.statement-import')
+            ->set('statementText', '')
+            ->call('import')
+            ->assertHasErrors(['statementText']);
     }
 }

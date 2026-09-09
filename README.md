@@ -28,10 +28,14 @@ The sidebar is grouped by what you're doing, top to bottom:
     confidently read falls back to AI, which only ever produces a *proposal* you still have to
     confirm. Confirm/Edit/Reject each one under "Ready to review" — nothing posts to the ledger
     until you confirm it. Possible duplicates are flagged separately for a second look.
-  - **Import Statement** — for bulk history: open an M-Pesa statement in your own PDF viewer,
-    copy the "Detailed Statement" table's text, and paste it here (never the PDF file itself —
-    this app never accepts a document upload). Proposals land in the same "Ready to review"
-    queue as SMS-derived ones, on the Messages page.
+  - **Import Statement** — for bulk history: either upload the statement PDF directly, or open
+    it in your own PDF viewer and paste the "Detailed Statement" table's text instead. PDF
+    upload is a narrow, explicit exception to this app's general no-document-upload rule
+    (CLAUDE.md §7a) — the file is never stored, only its text is extracted (text layer only,
+    never OCR), and it must be unencrypted (if it's password-protected, unlock/re-save it
+    first). Both paths feed the identical parsing/duplicate-detection/confirmation pipeline;
+    proposals land in the same "Ready to review" queue as SMS-derived ones, on the Messages
+    page.
   - **Accounts** / **Categories** — set these up first: your real accounts (M-Pesa, M-Shwari,
     bank, cash) and your income/expense categories. SMS parsing and manual entry both need
     these to exist. Most accounts are **Assets** (money you have); a debt like Fuliza should
@@ -189,23 +193,35 @@ stays mutable only until it's confirmed or rejected.
   confirmation-code extraction via regex. Anything it can't confidently match falls through
   rather than guessing.
 - `BankSmsParser` — a basic deterministic parser for common bank SMS formats.
-- `MpesaStatementParser` — a second input shape, still raw pasted **text** (never a file
-  upload — CLAUDE.md §7/§19/§20 rule that out completely, PDF/OCR is not a thing this system
-  does). Handles a copy-pasted row from Safaricom's official M-Pesa statement export (a
-  completely different shape from an SMS: "Receipt No. | Completion Time | Details | Status |
-  Paid In | Withdrawn | Balance", with Details often wrapping onto several lines).
-  `splitRows()` groups a whole pasted statement block into one chunk per transaction row,
-  skipping page headers/footers; each row then goes through the exact same `ingest()` as any
-  SMS — parse, validate, duplicate-check, propose, wait for confirmation. Covers the common,
-  high-volume shapes only (transfers, payments, pay bill, bundle purchases, withdrawals,
-  M-Shwari moves, and their fee rows, which statements list as separate rows rather than
-  folding inline like SMS does — suffixed distinctly in `external_transaction_id` so a fee row
-  is never mistaken for a duplicate of its own parent transaction). Reversals and the
-  Fuliza-flavored statement wording are a deliberate later pass. Bulk statement imports
-  (`ingestStatementBatch()`) skip AI fallback entirely — a real statement can be hundreds of
-  rows in one paste, and letting each unrecognized one trigger a live API call inside one
-  request would risk a timeout and real API cost for a single paste; unmatched rows are still
-  stored as NEEDS_REVIEW evidence, never silently dropped. Page: **Import Statement**.
+- `MpesaStatementParser` — a second input shape: text from Safaricom's official M-Pesa
+  statement export (a completely different shape from an SMS: "Receipt No. | Completion Time |
+  Details | Status | Paid In | Withdrawn | Balance", with Details often wrapping onto several
+  lines), reachable either by pasting or by uploading the statement PDF (see
+  `PdfStatementTextExtractor` below — CLAUDE.md §7a). `splitRows()` groups a whole pasted
+  statement block into one chunk per transaction row, skipping page headers/footers; each row
+  then goes through the exact same `ingest()` as any SMS — parse, validate, duplicate-check,
+  propose, wait for confirmation. Covers the common, high-volume shapes only (transfers,
+  payments, pay bill, bundle purchases, withdrawals, M-Shwari moves, and their fee rows, which
+  statements list as separate rows rather than folding inline like SMS does — suffixed
+  distinctly in `external_transaction_id` so a fee row is never mistaken for a duplicate of its
+  own parent transaction; Fuliza-flavored variants such as "Customer Bundle Purchase **with
+  Fuliza** to..." are deliberately excluded too, not just the obviously-Fuliza-worded rows).
+  Reversals and the Fuliza-flavored statement wording are a deliberate later pass. Bulk
+  statement imports (`ingestStatementBatch()`) skip AI fallback entirely — a real statement can
+  be hundreds of rows in one paste, and letting each unrecognized one trigger a live API call
+  inside one request would risk a timeout and real API cost for a single paste; unmatched rows
+  are still stored as NEEDS_REVIEW evidence, never silently dropped. Page: **Import Statement**.
+- `PdfStatementTextExtractor` — CLAUDE.md §7a's narrow, explicit exception to the
+  no-document-upload rule, scoped only to M-Pesa statement import. Uses `smalot/pdfparser`
+  (pure PHP, no shelled-out binary — the production host has `exec()` disabled) to read the
+  PDF's text layer only; never OCR, never a scanned image. Rejects encrypted PDFs and PDFs with
+  no text layer with a specific, helpful error rather than guessing. Real statement PDFs
+  position every table cell (receipt, timestamp, each wrapped Details line, status, amount,
+  balance) as its own separate positioned text command rather than one line of visible text, so
+  the extractor reflows the flattened cell stream structurally — a receipt code followed by a
+  timestamp starts a row, everything up to that row's amount+balance pair becomes its Details
+  text — rather than depending on any layout/whitespace heuristic. The uploaded file is never
+  persisted: it's read, text is extracted, and it's deleted immediately, success or failure.
 - `ClaudeProvider::parseFinancialMessage()` (AI fallback) — only invoked when no deterministic
   parser confidently handles a message. Its output is a **proposal only**.
 - `AiExtractionValidator` — independently re-checks every AI-extracted field (amount, date,

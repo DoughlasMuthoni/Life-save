@@ -178,6 +178,35 @@ proposed transaction → user confirmation (where required) → ledger posting
   `balance_observations` row (observed vs. calculated, with a difference and reconciliation
   status) — MUST NOT be used to directly overwrite an account's balance.
 
+## 7a. Statement PDF Upload (Text-Layer Extraction Only)
+
+**Amended [2026-09-09] at the explicit request of the project owner**, narrowly, for one
+purpose: letting an M-Pesa statement PDF be uploaded as a convenience alternative to
+copy-pasting its text. This does **not** reopen document upload/OCR/PDF parsing in general —
+§7's "no document upload for SMS" rule is unchanged, and this exception is scoped to exactly
+the M-Pesa statement import flow described here.
+
+- MUST accept **PDF only**, and MUST only extract text via the file's existing text layer
+  (as produced by Safaricom's official statement export). MUST NOT perform OCR or any
+  image-based text recognition. If no text layer is found (e.g. a scanned image), MUST reject
+  with a clear error — MUST NOT silently produce an empty or partial result.
+- MUST NOT support password-protected/encrypted PDFs. MUST reject with a clear error asking
+  the user to upload an unlocked copy. No password-entry field, no decryption logic, anywhere
+  in the app.
+- MUST extract text using a pure-PHP library — no shelling out to an external binary
+  (`exec()` is unavailable on the production shared host; see §17 and the deployment notes).
+- The extracted text MUST be treated identically to pasted statement text from that point
+  on: split into rows by the existing `MpesaStatementParser`, pushed through the unchanged
+  `ingestStatementBatch()` pipeline (duplicate detection, confirmation, ledger posting).
+  Uploading is only a different way of getting text into that one pipeline — never a second,
+  parallel data path.
+- MUST NOT persist the uploaded file beyond the request that processes it. Extract the text,
+  then delete the file immediately (success or failure) — the original PDF is never written
+  to permanent application storage.
+- MUST validate file type and enforce a maximum upload size.
+- Audit events (§13) MUST record that a statement PDF was uploaded and processed (filename,
+  row counts) — MUST NOT log the extracted text content.
+
 ## 8. AI Safety Rules
 
 - The AI provider MUST NOT receive database credentials, arbitrary SQL access, or any
@@ -409,11 +438,16 @@ transfers/fees; reversals & corrections; raw SMS paste; M-Pesa/M-Shwari/KCB M-Pe
 categories; balances; balance reconciliation; savings goals with virtual allocations;
 wishlist with deterministic affordability scenarios; financial dashboard; recent transactions;
 monthly reports; read-only AI financial assistant; basic personal tasks. **No document
-upload for financial SMS processing, ever, in V1.**
+upload for financial SMS processing, ever, in V1.** (M-Pesa statement PDF upload —
+text-layer extraction only, no OCR — is permitted specifically for the statement import
+flow; see §7a. This is a narrow, explicit exception, not a reopening of document upload in
+general.)
 
 ## 20. Explicit Out-of-Scope Items (for now)
 
-- Document/PDF upload or OCR for financial statements.
+- OCR / image-based PDF parsing for financial statements — still fully out of scope.
+  Native-text-layer PDF upload for M-Pesa statement import specifically is now in scope;
+  see §7a. Document/PDF upload for SMS ingestion (§7) remains out of scope.
 - Multi-user tenancy, teams, invites, roles/permissions beyond a single owner account.
 - Subscription billing / premium tiers (seen in the mockup but not requested).
 - Habits, Calendar, Notes, Projects, Health, Weight tracking, Workouts, Meals, Nutrition,
