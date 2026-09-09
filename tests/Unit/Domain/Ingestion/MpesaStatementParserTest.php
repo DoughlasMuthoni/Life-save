@@ -200,6 +200,23 @@ class MpesaStatementParserTest extends TestCase
         $this->assertNull($result);
     }
 
+    /**
+     * The bug this guards against: "Customer Bundle Purchase with Fuliza
+     * to ..." (a real, high-volume shape) was being swept into a plain
+     * BUNDLE_PURCHASE match — the bundle-purchase regex's optional
+     * "to|with" prefix matched "with" and treated "Fuliza to ..." as the
+     * counterparty — instead of falling through to needs-review like
+     * every other Fuliza-flavored statement row this pass defers.
+     */
+    public function test_a_fuliza_flavored_bundle_purchase_row_is_not_recognized_this_pass(): void
+    {
+        $result = $this->parseRow(
+            'AB1JK4YDDD           2026-09-02 19:45:22   Customer Bundle Purchase with Fuliza to 244441SAFARICOM POSTPAID BUNDLES by - 254707***913 Douglas Muthoni Completed -20.00 0.00'
+        );
+
+        $this->assertNull($result);
+    }
+
     public function test_a_non_completed_row_is_not_parsed(): void
     {
         $result = $this->parseRow(

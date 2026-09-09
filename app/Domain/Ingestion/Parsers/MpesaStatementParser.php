@@ -133,7 +133,13 @@ class MpesaStatementParser
             return [ExtractedTransactionType::STATEMENT_FEE, null];
         }
 
-        if (preg_match('/^Customer Bundle Purchase\b\s*(?:to|with)?\s*[-:]?\s*(.*)$/i', $details, $m)) {
+        // Deliberately requires the bare "to" prefix, not "with" — real
+        // statements also have "Customer Bundle Purchase with Fuliza to
+        // ..." rows (funded via Fuliza overdraft, paired with a separate
+        // "OverDraft of Credit Party" line), which must fall through to
+        // needs-review like every other Fuliza-flavored row this pass
+        // defers, not get swept in here as a plain bundle purchase.
+        if (preg_match('/^Customer Bundle Purchase to\b\s*[-:]?\s*(.*)$/i', $details, $m)) {
             return [ExtractedTransactionType::BUNDLE_PURCHASE, $this->cleanCounterparty($m[1]) ?: 'Airtime/Bundles'];
         }
 
